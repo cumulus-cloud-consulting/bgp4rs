@@ -10,4 +10,8 @@ pub enum Error {
         offending_value: String,
         message : String,
     },
+    #[error("Invalid value '{as_number}' provided for AS number")]
+    InvalidAsNumerError {
+        as_number : i64,
+    },
 }
