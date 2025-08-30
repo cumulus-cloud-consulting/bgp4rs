@@ -11,7 +11,13 @@ pub enum Error {
         message : String,
     },
     #[error("Invalid value '{as_number}' provided for AS number")]
-    InvalidAsNumerError {
+    InvalidAsNumberError {
         as_number : i64,
+    },
+    #[error(transparent)]
+    ParseIpAddressError(#[from] std::net::AddrParseError),
+    #[error("Invalid value '{ip_address}' provided for IP number")]
+    InvalidIpAddressError {
+        ip_address : String,
     },
 }

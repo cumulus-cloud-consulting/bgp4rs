@@ -1,6 +1,6 @@
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::router_engine::RouterEngine;
-use uuid_rs::UUID;
+use uuid::Uuid;
 
 pub struct MainRouterEngine {
     
@@ -26,7 +26,7 @@ impl RouterEngine for MainRouterEngine {
         todo!()
     }
 
-    fn remove_peer(&self, peer_id: &UUID) -> crate::shared::prelude::Result<()> {
+    fn remove_peer(&self, peer_id: &Uuid) -> crate::shared::prelude::Result<()> {
         todo!()
     }
 }

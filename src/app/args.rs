@@ -11,8 +11,12 @@ use std::rc::Rc;
 #[command(version, about, long_about = None)]
 pub struct Args {
     /// Path to config file. Required if file-based configuration is used
-    #[arg(short, long, default_value_t = String::from("./config/app.yaml"), env("APP_CONFIG_PATH"))]
-    pub file_path: String,
+    #[arg(short, long, default_value_t = String::from("./config/app.yaml"), env("ROUTER_CONFIG_PATH"))]
+    pub router_config_path: String,
+
+    /// Path to config file. Required if file-based configuration is used
+    #[arg(short, long, default_value_t = String::from("./config/log4rs.yaml"), env("LOG_CONFIG_PATH"))]
+    pub log_config_path: String,
 
     /// configuration type to be applied. Defaults to file based if not specified
     #[arg(value_enum, short, long, default_value_t = ConfigType::File)]
@@ -29,12 +33,12 @@ pub fn parse() -> Result<Args> {
 
     match args.config_type {
         ConfigType::File => {
-            let config_file_path = Path::new(&args.file_path.as_str()).to_path_buf();
+            let config_file_path = Path::new(&args.router_config_path.as_str()).to_path_buf();
 
             if !config_file_path.exists() {
                 Err(ArgumentError {
                     parameter: "-f".to_string(),
-                    offending_value: args.file_path.clone(),
+                    offending_value: args.router_config_path.clone(),
                     message: "Config file does not exist.".to_string(),
                 })
             } else {
@@ -50,7 +54,7 @@ impl Args {
         router_engine: &Rc<Box<dyn RouterEngine>>,
     ) -> Result<Box<dyn ConfigProvider>> {
         match self.config_type {
-            ConfigType::File => ConfigFileProvider::new(router_engine, self.file_path.as_str()),
+            ConfigType::File => ConfigFileProvider::new(router_engine, self.router_config_path.as_str()),
         }
     }
 }

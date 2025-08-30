@@ -1,5 +1,5 @@
 use serde::de::Error;
-use serde::Deserializer;
+use serde::{Deserializer, Serializer};
 use std::fmt;
 use std::fmt::Formatter;
 
@@ -11,6 +11,12 @@ pub enum AsNumber {
 
 /// Transition AS number to be used as peer AS when peers determine AS4 number capability
 pub const AS_TRANS: AsNumber = AsNumber::Small(23456);
+
+impl Default for AsNumber {
+    fn default() -> Self {
+        AS_TRANS
+    }
+}
 
 impl From<u16> for AsNumber {
     fn from(value: u16) -> Self {
@@ -33,7 +39,7 @@ impl TryFrom<u64> for AsNumber {
         } else if value <= std::u32::MAX as u64 {
             Ok(AsNumber::Extended(value as u32))
         } else {
-            Err(crate::shared::error::Error::InvalidAsNumerError { as_number : value as i64})
+            Err(crate::shared::error::Error::InvalidAsNumberError { as_number : value as i64})
         }
     }
 }
@@ -50,6 +56,18 @@ impl fmt::Display for AsNumber {
 impl fmt::Debug for AsNumber {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(self, f)
+    }
+}
+
+impl serde::Serialize for AsNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        match *self {
+            AsNumber::Small(number) => serializer.serialize_u16(number),
+            AsNumber::Extended(number) => serializer.serialize_u32(number),
+        }
     }
 }
 

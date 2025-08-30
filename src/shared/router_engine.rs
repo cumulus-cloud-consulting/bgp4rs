@@ -1,6 +1,6 @@
+use uuid::Uuid;
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
-use uuid_rs::UUID;
 
 /// Trait definition for the router engine to implement
 ///
@@ -19,5 +19,5 @@ pub trait RouterEngine {
     fn add_peer(&self, peer : &PeerConfiguration) -> Result<()>;
 
     /// Remove a peer from a running engine
-    fn remove_peer(&self, peer_id : &UUID) -> Result<()>;
+    fn remove_peer(&self, peer_id : &Uuid) -> Result<()>;
 }
