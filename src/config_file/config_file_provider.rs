@@ -1,5 +1,5 @@
 use std::rc::Rc;
-
+use log::info;
 use crate::shared::config_provider::ConfigProvider;
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::RouterConfiguration;
@@ -14,14 +14,15 @@ pub struct ConfigFileProvider {
 
 impl ConfigProvider for ConfigFileProvider {
     fn provide_configuration(&self) -> Result<RouterConfiguration> {
+        info!("Configuration file provider starting with log file {}", &self.file_path);
+
         match EngineConfigFile::parse(&self.file_path) {
             Ok(engine_config_file) => {
-                match EngineConfigFile::parse(&self.file_path) {
-                    Ok(engine_config) => TryInto::<RouterConfiguration>::try_into(engine_config_file),
-                    Err(e) => Err(ConfigurationFileError(e)),
-                }
+                info!("Configuration file parsed successfully");
+                
+                TryInto::<RouterConfiguration>::try_into(engine_config_file)
             },
-            Err(error) => Err(ConfigurationFileError(error)),
+            Err(e) => Err(ConfigurationFileError(e)),
         }
     }
 }

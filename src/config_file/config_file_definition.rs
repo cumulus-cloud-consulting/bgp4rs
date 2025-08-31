@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::string::ParseError;
+use log::info;
 use twelf::{Error, Layer, config};
 use uuid::Uuid;
 
@@ -83,13 +84,17 @@ impl TryInto<PeerConfiguration> for PeerConfigFile {
                         });
                     }
 
-                    Ok(PeerConfiguration {
+                    let peer_configuration = PeerConfiguration {
                         peer_id: Uuid::new_v4(),
                         peer_name: self.peer_name.clone(),
                         remote_as_number: self.peer_as,
                         remote_address,
                         local_address,
-                    })
+                    };
+
+                    info!("Peer configuration {}", &peer_configuration);
+
+                    Ok(peer_configuration)
                 }
                 Err(err) => Err(err),
             },
