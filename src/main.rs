@@ -2,6 +2,7 @@ use crate::router_engine::main_router_engine::MainRouterEngine;
 use app::args::parse;
 use std::rc::Rc;
 use std::process;
+use log::error;
 
 mod shared;
 mod app;
@@ -12,39 +13,48 @@ mod router_engine;
 async fn main() {
     match parse() {
         Ok(args) => {
-            let router_engine = Rc::new(MainRouterEngine::new());
+            match args.initialize_logging() {
+                Ok(_) => {
+                    let router_engine = Rc::new(MainRouterEngine::new());
 
-            match args.config_provider(&router_engine) {
-                Ok(config_provider) => {
-                    match config_provider.provide_configuration() {
-                        Ok(initial_configuration) => {
-                            match router_engine.initial_configuration(&initial_configuration) {
-                                Ok(()) => {
-                                    match router_engine.start() {
-                                        Ok(()) => {}
+                    match args.config_provider(&router_engine) {
+                        Ok(config_provider) => {
+                            match config_provider.provide_configuration() {
+                                Ok(initial_configuration) => {
+                                    match router_engine.initial_configuration(&initial_configuration) {
+                                        Ok(()) => {
+                                            match router_engine.start() {
+                                                Ok(()) => {}
+                                                Err(err) => {
+                                                    error!("Error starting routing engine: {err}");
+                                                    process::exit(1);
+                                                }
+                                            }
+                                        }
                                         Err(err) => {
-                                            eprintln!("Error starting routing engine: {err}");
+                                            error!("Error providing initial configuration to router engine: {err}");
                                             process::exit(1);
                                         }
                                     }
-                                }
+                                },
                                 Err(err) => {
-                                    eprintln!("Error providing initial configuration to router engine: {err}");
+                                    error!("Error loading configuration: {err}");
                                     process::exit(1);
                                 }
                             }
                         },
                         Err(err) => {
-                            eprintln!("Error loading configuration: {err}");
+                            eprintln!("Error determining configuration provider: {err}");
                             process::exit(1);
                         }
                     }
-                },
-                Err(err) => {
-                    eprintln!("Error determining configuration provider: {err}");
+                }
+                Err(error) => {
+                    eprintln!("Error initializing log system: {error}");
                     process::exit(1);
                 }
             }
+
         },
         Err(err) => {
             eprintln!("Error handling command-line argument: {err}");

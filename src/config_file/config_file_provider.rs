@@ -5,7 +5,7 @@ use crate::shared::prelude::Result;
 use crate::shared::router_configuration::RouterConfiguration;
 use crate::shared::router_engine::RouterEngine;
 use crate::config_file::config_file_definition::EngineConfigFile;
-use crate::shared::error::Error::ConfigError;
+use crate::shared::error::Error::ConfigurationFileError;
 
 pub struct ConfigFileProvider {
     router_engine: Rc<Box<dyn RouterEngine>>,
@@ -18,10 +18,10 @@ impl ConfigProvider for ConfigFileProvider {
             Ok(engine_config_file) => {
                 match EngineConfigFile::parse(&self.file_path) {
                     Ok(engine_config) => TryInto::<RouterConfiguration>::try_into(engine_config_file),
-                    Err(e) => Err(ConfigError(e)),
+                    Err(e) => Err(ConfigurationFileError(e)),
                 }
             },
-            Err(error) => Err(ConfigError(error)),
+            Err(error) => Err(ConfigurationFileError(error)),
         }
     }
 }

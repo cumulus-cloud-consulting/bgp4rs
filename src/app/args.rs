@@ -1,11 +1,15 @@
 use std::path::Path;
 use crate::config_file::config_file_provider::ConfigFileProvider;
 use crate::shared::config_provider::ConfigProvider;
-use crate::shared::error::Error::ArgumentError;
+use crate::shared::error::Error::{ArgumentError, LoggingConfigurationError, LoggingInstantiationError, UnspecifiedError};
 use crate::shared::prelude::Result;
 use crate::shared::router_engine::RouterEngine;
 use clap::{Parser, ValueEnum};
 use std::rc::Rc;
+use log4rs::append::console::ConsoleAppender;
+use log4rs::{Config, Handle};
+use log4rs::config::{Appender, Root};
+use log::LevelFilter;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -55,6 +59,29 @@ impl Args {
     ) -> Result<Box<dyn ConfigProvider>> {
         match self.config_type {
             ConfigType::File => ConfigFileProvider::new(router_engine, self.router_config_path.as_str()),
+        }
+    }
+
+    pub fn initialize_logging(&self) -> Result<()> {
+        let log_file_path = Path::new(&self.log_config_path.as_str()).to_path_buf();
+
+        if(!log_file_path.exists()) {
+            let stdout = ConsoleAppender::builder().build();
+
+            match Config::builder()
+                .appender(Appender::builder().build("stdout", Box::new(stdout)))
+                .build(Root::builder().appender("stdout").build(LevelFilter::Info)) {
+                Ok(config) => match log4rs::init_config(config) {
+                    Ok(_) => Ok(()),
+                    Err(err) => Err(LoggingInstantiationError(err))
+                },
+                Err(e) => Err(LoggingConfigurationError(e))
+            }
+        } else {
+            match log4rs::init_file(log_file_path, Default::default()) {
+                Ok(())=> Ok(()),
+                Err(err) => Err(UnspecifiedError(err))
+            }
         }
     }
 }

@@ -1,9 +1,15 @@
+use log4rs::config::runtime::{ConfigError, ConfigErrors};
+use log::SetLoggerError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    ConfigError(#[from] twelf::Error),
+    ConfigurationFileError(#[from] twelf::Error),
+    #[error(transparent)]
+    LoggingConfigurationError(#[from] ConfigErrors),
+    #[error(transparent)]
+    LoggingInstantiationError(#[from] SetLoggerError),
     #[error("Invalid value '{offending_value}' provided for parameter '{parameter}': {message}")]
     ArgumentError {
         parameter : String,
@@ -20,4 +26,6 @@ pub enum Error {
     InvalidIpAddressError {
         ip_address : String,
     },
+    #[error(transparent)]
+    UnspecifiedError(#[from] anyhow::Error),
 }
