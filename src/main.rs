@@ -2,7 +2,7 @@ use crate::router_engine::main_router_engine::MainRouterEngine;
 use app::args::parse;
 use std::rc::Rc;
 use std::process;
-use log::error;
+use log::{error, info};
 
 mod shared;
 mod app;
@@ -24,7 +24,11 @@ async fn main() {
                                     match router_engine.initial_configuration(&initial_configuration) {
                                         Ok(()) => {
                                             match router_engine.start() {
-                                                Ok(()) => {}
+                                                Ok(()) => {
+                                                    router_engine.await_termination();
+
+                                                    info!("Router engine terminated");
+                                                }
                                                 Err(err) => {
                                                     error!("Error starting routing engine: {err}");
                                                     process::exit(1);

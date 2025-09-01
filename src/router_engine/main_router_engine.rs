@@ -11,7 +11,7 @@ impl RouterEngine for MainRouterEngine {
     where
         Self: Sized
     {
-        todo!()
+        Ok(())
     }
 
     fn stop(&self) -> crate::shared::prelude::Result<()> {
@@ -19,7 +19,7 @@ impl RouterEngine for MainRouterEngine {
     }
 
     fn initial_configuration(&self, router_configuration: &RouterConfiguration) -> crate::shared::prelude::Result<()> {
-        todo!()
+        Ok(())
     }
 
     fn add_peer(&self, peer: &PeerConfiguration) -> crate::shared::prelude::Result<()> {
@@ -28,6 +28,10 @@ impl RouterEngine for MainRouterEngine {
 
     fn remove_peer(&self, peer_id: &Uuid) -> crate::shared::prelude::Result<()> {
         todo!()
+    }
+
+    fn await_termination(&self) -> () {
+        ()
     }
 }
 

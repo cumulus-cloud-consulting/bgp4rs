@@ -4,6 +4,7 @@ use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration
 
 /// Trait definition for the router engine to implement
 ///
+///
 pub trait RouterEngine {
     /// Start the router engine:
     ///
@@ -20,4 +21,7 @@ pub trait RouterEngine {
 
     /// Remove a peer from a running engine
     fn remove_peer(&self, peer_id : &Uuid) -> Result<()>;
+
+    /// Await router engine termination
+    fn await_termination(&self) -> ();
 }
