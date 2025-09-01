@@ -1,0 +1,8 @@
+localAs: 64515
+peers:
+  - peerName: Cisco test router
+    peerAs: 64515
+    peerAddress:
+      ipAddress: 192.168.9.249
+    localAddress:
+      ipAddress: 192.168.9.8
