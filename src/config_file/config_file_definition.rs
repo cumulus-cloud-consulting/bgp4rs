@@ -19,6 +19,7 @@ pub struct EngineConfigFile {
 }
 
 #[derive(Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct PeerConfigFile {
     peer_as: AsNumber,
     peer_name: String,
@@ -27,9 +28,10 @@ pub struct PeerConfigFile {
 }
 
 #[derive(Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct SocketAddressSpec {
     ip_address: String,
-    port_number: u16,
+    port_number: Option<u16>,
 }
 
 impl EngineConfigFile {
@@ -46,7 +48,7 @@ impl Display for SocketAddressSpec {
         write!(
             f,
             "IP Address {}, port number{}",
-            &self.ip_address, &self.port_number
+            &self.ip_address, &self.port_number.unwrap_or(0)
         )
     }
 }
@@ -69,13 +71,7 @@ impl TryInto<SocketAddr> for SocketAddressSpec {
                     });
                 }
 
-                let port_number = if self.port_number == 0 {
-                    179
-                } else {
-                    self.port_number
-                };
-
-                Ok(SocketAddr::new(addr, port_number))
+                Ok(SocketAddr::new(addr, self.port_number.unwrap_or(179)))
             }
             Err(err) => Err(ParseIpAddressError(err)),
         }
@@ -168,7 +164,7 @@ mod tests {
     fn should_convert_ipv4_address_spec_without_port_number() {
         let spec = SocketAddressSpec {
             ip_address: "192.168.1.1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -184,7 +180,7 @@ mod tests {
     fn should_convert_ipv4_address_spec_with_port_number() {
         let spec = SocketAddressSpec {
             ip_address: "192.168.1.1".to_string(),
-            port_number: 1179,
+            port_number: Some(1179),
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -200,7 +196,7 @@ mod tests {
     fn should_not_convert_ipv4_address_spec_for_localhost() {
         let spec = SocketAddressSpec {
             ip_address: "127.0.0.1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -215,7 +211,7 @@ mod tests {
     fn should_not_convert_ipv4_address_spec_for_multicast() {
         let spec = SocketAddressSpec {
             ip_address: "239.1.1.1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -230,7 +226,7 @@ mod tests {
     fn should_not_convert_ipv4_address_spec_for_incomplete_address() {
         let spec = SocketAddressSpec {
             ip_address: "192.168.1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -245,7 +241,7 @@ mod tests {
     fn should_convert_ipv6_address_spec_without_port_number() {
         let spec = SocketAddressSpec {
             ip_address: "2001:4860:4860::8888".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -264,7 +260,7 @@ mod tests {
     fn should_convert_ipv6_address_spec_with_port_number() {
         let spec = SocketAddressSpec {
             ip_address: "2001:4860:4860::8888".to_string(),
-            port_number: 1179,
+            port_number: Some(1179),
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -283,7 +279,7 @@ mod tests {
     fn should_not_convert_ipv6_address_spec_for_localhost() {
         let spec = SocketAddressSpec {
             ip_address: "::1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -298,7 +294,7 @@ mod tests {
     fn should_not_convert_ipv6_address_spec_for_multicast() {
         let spec = SocketAddressSpec {
             ip_address: "ff02::1".to_string(),
-            port_number: 0,
+            port_number: None,
         };
 
         match TryInto::<SocketAddr>::try_into(spec) {
@@ -316,11 +312,11 @@ mod tests {
             peer_name: "Some peer".to_string(),
             peer_address: SocketAddressSpec {
                 ip_address: "192.168.1.1".to_string(),
-                port_number: 0,
+                port_number: None,
             },
             local_address: SocketAddressSpec {
                 ip_address: "192.168.2.2".to_string(),
-                port_number: 0,
+                port_number: None,
             },
         };
 
@@ -348,11 +344,11 @@ mod tests {
             peer_name: "Some peer".to_string(),
             peer_address: SocketAddressSpec {
                 ip_address: "192.168.1.1".to_string(),
-                port_number: 0,
+                port_number: None,
             },
             local_address: SocketAddressSpec {
                 ip_address: "127.0.0.1".to_string(),
-                port_number: 0,
+                port_number: None,
             },
         };
 
@@ -369,11 +365,11 @@ mod tests {
             peer_name: "Some peer".to_string(),
             peer_address: SocketAddressSpec {
                 ip_address: "127.0.0.1".to_string(),
-                port_number: 0,
+                port_number: None
             },
             local_address: SocketAddressSpec {
                 ip_address: "192.168.2.2".to_string(),
-                port_number: 0,
+                port_number: None,
             },
         };
 
@@ -390,11 +386,11 @@ mod tests {
             peer_name: "Some peer".to_string(),
             peer_address: SocketAddressSpec {
                 ip_address: "192.168.1.1".to_string(),
-                port_number: 0,
+                port_number: None,
             },
             local_address: SocketAddressSpec {
                 ip_address: "192.168.1.1".to_string(),
-                port_number: 0,
+                port_number: None,
             },
         };
 
@@ -413,11 +409,11 @@ mod tests {
                 peer_name: "Some peer".to_string(),
                 peer_address: SocketAddressSpec {
                     ip_address: "192.168.1.1".to_string(),
-                    port_number: 0,
+                    port_number: None,
                 },
                 local_address: SocketAddressSpec {
                     ip_address: "192.168.2.2".to_string(),
-                    port_number: 0,
+                    port_number: None,
                 },
             }],
         };
@@ -453,11 +449,11 @@ mod tests {
                 peer_name: "Some peer".to_string(),
                 peer_address: SocketAddressSpec {
                     ip_address: "192.168.1.1".to_string(),
-                    port_number: 0,
+                    port_number: None,
                 },
                 local_address: SocketAddressSpec {
                     ip_address: "192.168.1.1".to_string(),
-                    port_number: 0,
+                    port_number: None,
                 },
             }],
         };
