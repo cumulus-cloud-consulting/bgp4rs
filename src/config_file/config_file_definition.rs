@@ -1,11 +1,12 @@
 use crate::shared::as_number::AsNumber;
 use crate::shared::error::Error::{InvalidIpAddressError, ParseIpAddressError};
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter, write};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::string::ParseError;
-use log::info;
 use twelf::{Error, Layer, config};
 use uuid::Uuid;
 
@@ -40,6 +41,16 @@ impl EngineConfigFile {
     }
 }
 
+impl Display for SocketAddressSpec {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "IP Address {}, port number{}",
+            &self.ip_address, &self.port_number
+        )
+    }
+}
+
 impl TryInto<SocketAddr> for SocketAddressSpec {
     type Error = crate::shared::prelude::Error;
 
@@ -71,14 +82,31 @@ impl TryInto<SocketAddr> for SocketAddressSpec {
     }
 }
 
+impl Display for PeerConfigFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Peer name {}, Peer AS {}, Local address {}, peer address {}",
+            self.peer_name, self.peer_as, self.local_address, self.peer_address
+        )
+    }
+}
+
 impl TryInto<PeerConfiguration> for PeerConfigFile {
     type Error = crate::shared::prelude::Error;
 
     fn try_into(self) -> Result<PeerConfiguration, Self::Error> {
+        info!("Processing peer configuration file entry {}", &self);
+
         match TryInto::<SocketAddr>::try_into(self.local_address) {
-            Ok(local_address) => match self.peer_address.try_into() {
+            Ok(local_address) => match TryInto::<SocketAddr>::try_into(self.peer_address) {
                 Ok(remote_address) => {
-                    if local_address == remote_address {
+                    let local_ip_address = &local_address.ip();
+                    let remote_ip_address = &remote_address.ip();
+
+                    if local_ip_address == remote_ip_address {
+                        error!("Local and peer IP pointing to same host");
+
                         return Err(InvalidIpAddressError {
                             ip_address: local_address.to_string(),
                         });
@@ -96,9 +124,17 @@ impl TryInto<PeerConfiguration> for PeerConfigFile {
 
                     Ok(peer_configuration)
                 }
-                Err(err) => Err(err),
+                Err(err) => {
+                    error!("Failed to parse peer address: {}", err);
+
+                    Err(err)
+                },
             },
-            Err(err) => Err(err),
+            Err(err) => {
+                error!("Failed to parse local address: {}", err);
+
+                Err(err)
+            }
         }
     }
 }
