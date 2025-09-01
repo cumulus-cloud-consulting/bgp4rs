@@ -23,6 +23,8 @@ async fn main() {
                                 Ok(initial_configuration) => {
                                     match router_engine.initial_configuration(&initial_configuration) {
                                         Ok(()) => {
+                                            info!("Starting router engine");
+                                            
                                             match router_engine.start() {
                                                 Ok(()) => {
                                                     router_engine.await_termination();
