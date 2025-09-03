@@ -15,13 +15,13 @@ async fn main() {
         Ok(args) => {
             match args.initialize_logging() {
                 Ok(_) => {
-                    let router_engine = Rc::new(MainRouterEngine::new());
+                    let router_engine = Rc::new(MainRouterEngine::new().unwrap());
 
                     match args.config_provider(&router_engine) {
                         Ok(config_provider) => {
                             match config_provider.provide_configuration() {
                                 Ok(initial_configuration) => {
-                                    match router_engine.initial_configuration(&initial_configuration) {
+                                    match router_engine.initial_configuration(initial_configuration) {
                                         Ok(()) => {
                                             info!("Starting router engine");
                                             

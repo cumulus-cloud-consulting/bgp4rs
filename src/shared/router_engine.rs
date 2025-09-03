@@ -14,10 +14,10 @@ pub trait RouterEngine {
     fn stop(&self) -> Result<()>;
 
     /// Provide initial configuration to the router engine
-    fn initial_configuration(&self, router_configuration : &RouterConfiguration) -> Result<()>;
+    fn initial_configuration(&self, router_configuration : RouterConfiguration) -> Result<()>;
 
     /// Add a peer to a running engine
-    fn add_peer(&self, peer : &PeerConfiguration) -> Result<()>;
+    fn add_peer(&self, peer : PeerConfiguration) -> Result<()>;
 
     /// Remove a peer from a running engine
     fn remove_peer(&self, peer_id : &Uuid) -> Result<()>;
