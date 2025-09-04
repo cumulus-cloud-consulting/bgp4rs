@@ -1,10 +1,9 @@
-use std::net::IpAddr;
-use log::{info,error};
-use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use crate::shared::error::Error::UnspecifiedError;
 use crate::shared::prelude::Result;
 use async_trait::async_trait;
-
+use log::{error, info};
+use network_interface::{NetworkInterface, NetworkInterfaceConfig};
+use std::net::IpAddr;
 
 #[async_trait]
 pub trait LocalAddressMatcher {
@@ -12,9 +11,8 @@ pub trait LocalAddressMatcher {
 }
 
 pub struct HostInterfacesLocalAddressMatcher {
-    local_intf_addresses: Vec<IpAddr>
+    local_intf_addresses: Vec<IpAddr>,
 }
-
 
 #[async_trait]
 impl LocalAddressMatcher for HostInterfacesLocalAddressMatcher {
@@ -26,16 +24,19 @@ impl LocalAddressMatcher for HostInterfacesLocalAddressMatcher {
 impl HostInterfacesLocalAddressMatcher {
     pub fn new() -> Result<Box<dyn LocalAddressMatcher>> {
         match NetworkInterface::show() {
-            Ok(network_interfaces   ) => {
-                let mut hosts_addrs : Vec<IpAddr> = Vec::new();
+            Ok(network_interfaces) => {
+                let mut hosts_addrs: Vec<IpAddr> = Vec::new();
 
                 for ni in network_interfaces {
                     let if_name = &ni.name;
 
-                    for host_addr in ni.addr{
+                    for host_addr in ni.addr {
                         let if_addr = host_addr.ip();
 
-                        info!("Find network address {} for interface {}", &if_addr, &if_name);
+                        info!(
+                            "Find network address {} for interface {}",
+                            &if_addr, &if_name
+                        );
 
                         hosts_addrs.push(if_addr);
                     }
@@ -44,7 +45,7 @@ impl HostInterfacesLocalAddressMatcher {
                 Ok(Box::new(HostInterfacesLocalAddressMatcher {
                     local_intf_addresses: hosts_addrs,
                 }))
-            },
+            }
             Err(error) => {
                 error!("Cannot enumerate host network interfaces: {}", error);
 

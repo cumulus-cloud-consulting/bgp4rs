@@ -27,21 +27,32 @@ impl RouterEngine for MainRouterEngine {
         router_configuration: RouterConfiguration,
     ) -> crate::shared::prelude::Result<()> {
         for peer_configuration in router_configuration.peer_configurations {
-            if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher).await {
+            if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher)
+                .await
+            {
                 info!("Peer {} passed local address rule", &peer_configuration);
             } else {
-                warn!("Peer {} does not pass local address rule", &peer_configuration);
+                warn!(
+                    "Peer {} does not pass local address rule",
+                    &peer_configuration
+                );
             }
         }
 
         Ok(())
     }
 
-    async fn add_peer(&self, peer_configuration: PeerConfiguration) -> crate::shared::prelude::Result<()> {
+    async fn add_peer(
+        &self,
+        peer_configuration: PeerConfiguration,
+    ) -> crate::shared::prelude::Result<()> {
         if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher).await {
             info!("Peer {} passed local address rule", &peer_configuration);
         } else {
-            warn!("Peer {} does not pass local address rule", &peer_configuration);
+            warn!(
+                "Peer {} does not pass local address rule",
+                &peer_configuration
+            );
         }
 
         Ok(())
@@ -66,9 +77,15 @@ impl MainRouterEngine {
         }
     }
 
-    async fn verify_local_addres_rule(peer_confguration: &PeerConfiguration,
-                                local_address_matcher : &Box<dyn LocalAddressMatcher>) -> bool {
-        local_address_matcher.is_local_address(&peer_confguration.local_address.ip()).await
-            && !local_address_matcher.is_local_address(&peer_confguration.remote_address.ip()).await
+    async fn verify_local_addres_rule(
+        peer_confguration: &PeerConfiguration,
+        local_address_matcher: &Box<dyn LocalAddressMatcher>,
+    ) -> bool {
+        local_address_matcher
+            .is_local_address(&peer_confguration.local_address.ip())
+            .await
+            && !local_address_matcher
+                .is_local_address(&peer_confguration.remote_address.ip())
+                .await
     }
 }

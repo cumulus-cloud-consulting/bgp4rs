@@ -3,11 +3,11 @@ use crate::shared::error::Error::{InvalidIpAddressError, ParseIpAddressError};
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter, write};
+use std::fmt::{write, Display, Formatter};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::string::ParseError;
-use twelf::{Error, Layer, config};
+use twelf::{config, Error, Layer};
 use uuid::Uuid;
 
 #[config]
@@ -48,7 +48,8 @@ impl Display for SocketAddressSpec {
         write!(
             f,
             "IP Address {}, port number{}",
-            &self.ip_address, &self.port_number.unwrap_or(0)
+            &self.ip_address,
+            &self.port_number.unwrap_or(0)
         )
     }
 }
@@ -124,7 +125,7 @@ impl TryInto<PeerConfiguration> for PeerConfigFile {
                     error!("Failed to parse peer address: {}", err);
 
                     Err(err)
-                },
+                }
             },
             Err(err) => {
                 error!("Failed to parse local address: {}", err);
@@ -158,7 +159,7 @@ impl TryInto<RouterConfiguration> for EngineConfigFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{Ipv4Addr, SocketAddrV6};
+    use std::net::Ipv4Addr;
 
     #[test]
     fn should_convert_ipv4_address_spec_without_port_number() {
@@ -365,7 +366,7 @@ mod tests {
             peer_name: "Some peer".to_string(),
             peer_address: SocketAddressSpec {
                 ip_address: "127.0.0.1".to_string(),
-                port_number: None
+                port_number: None,
             },
             local_address: SocketAddressSpec {
                 ip_address: "192.168.2.2".to_string(),
