@@ -21,13 +21,13 @@ async fn main() {
                         Ok(config_provider) => {
                             match config_provider.provide_configuration() {
                                 Ok(initial_configuration) => {
-                                    match router_engine.initial_configuration(initial_configuration) {
+                                    match router_engine.initial_configuration(initial_configuration).await {
                                         Ok(()) => {
                                             info!("Starting router engine");
                                             
-                                            match router_engine.start() {
+                                            match router_engine.start().await {
                                                 Ok(()) => {
-                                                    router_engine.await_termination();
+                                                    router_engine.await_termination().await;
 
                                                     info!("Router engine terminated");
                                                 }

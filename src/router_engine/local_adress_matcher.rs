@@ -3,9 +3,12 @@ use log::{info,error};
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use crate::shared::error::Error::UnspecifiedError;
 use crate::shared::prelude::Result;
+use async_trait::async_trait;
 
+
+#[async_trait]
 pub trait LocalAddressMatcher {
-    fn is_local_address(&self, ip_address: &IpAddr) -> bool;
+    async fn is_local_address(&self, ip_address: &IpAddr) -> bool;
 }
 
 pub struct HostInterfacesLocalAddressMatcher {
@@ -13,8 +16,9 @@ pub struct HostInterfacesLocalAddressMatcher {
 }
 
 
+#[async_trait]
 impl LocalAddressMatcher for HostInterfacesLocalAddressMatcher {
-    fn is_local_address(&self, ip_address: &IpAddr) -> bool {
+    async fn is_local_address(&self, ip_address: &IpAddr) -> bool {
         self.local_intf_addresses.contains(&ip_address)
     }
 }
@@ -30,7 +34,7 @@ impl HostInterfacesLocalAddressMatcher {
 
                     for host_addr in ni.addr{
                         let if_addr = host_addr.ip();
-                        
+
                         info!("Find network address {} for interface {}", &if_addr, &if_name);
 
                         hosts_addrs.push(if_addr);
