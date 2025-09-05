@@ -10,7 +10,7 @@ use crate::router_engine::main_router_engine::MainRouterEngine;
 use app::args::parse;
 use log::{error, info};
 use std::process;
-use std::rc::Rc;
+use std::sync::Arc;
 
 mod app;
 mod config_file;
@@ -22,7 +22,8 @@ async fn main() {
     match parse() {
         Ok(args) => match args.initialize_logging() {
             Ok(_) => {
-                let router_engine = Rc::new(MainRouterEngine::new().unwrap());
+                let (t_router_engine, join_handle) = MainRouterEngine::new().unwrap();
+                let router_engine = Arc::new(t_router_engine);
 
                 match args.config_provider(&router_engine) {
                     Ok(config_provider) => match config_provider.provide_configuration() {
@@ -36,7 +37,7 @@ async fn main() {
 
                                     match router_engine.start().await {
                                         Ok(()) => {
-                                            router_engine.await_termination().await;
+                                            router_engine.await_termination(join_handle).await;
 
                                             info!("Router engine terminated");
                                         }

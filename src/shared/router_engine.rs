@@ -9,6 +9,7 @@
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use async_trait::async_trait;
+use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 /// Trait definition for the router engine to implement
@@ -33,5 +34,5 @@ pub trait RouterEngine {
     async fn remove_peer(&self, peer_id: &Uuid) -> Result<()>;
 
     /// Await router engine termination
-    async fn await_termination(&self) -> ();
+    async fn await_termination(&self, join_handle: JoinHandle<()>) -> ();
 }

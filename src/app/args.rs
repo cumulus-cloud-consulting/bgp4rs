@@ -19,7 +19,7 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Root};
 use log4rs::Config;
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -65,7 +65,7 @@ pub fn parse() -> Result<Args> {
 impl Args {
     pub fn config_provider(
         &self,
-        router_engine: &Rc<Box<dyn RouterEngine>>,
+        router_engine: &Arc<Box<dyn RouterEngine>>,
     ) -> Result<Box<dyn ConfigProvider>> {
         match self.config_type {
             ConfigType::File => {

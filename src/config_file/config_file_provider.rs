@@ -13,10 +13,10 @@ use crate::shared::prelude::Result;
 use crate::shared::router_configuration::RouterConfiguration;
 use crate::shared::router_engine::RouterEngine;
 use log::info;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct ConfigFileProvider {
-    router_engine: Rc<Box<dyn RouterEngine>>,
+    router_engine: Arc<Box<dyn RouterEngine>>,
     file_path: String,
 }
 
@@ -40,11 +40,11 @@ impl ConfigProvider for ConfigFileProvider {
 
 impl ConfigFileProvider {
     pub fn new(
-        router_engine: &Rc<Box<dyn RouterEngine>>,
+        router_engine: &Arc<Box<dyn RouterEngine>>,
         file_path: &str,
     ) -> Result<Box<dyn ConfigProvider>> {
         Ok(Box::new(ConfigFileProvider {
-            router_engine: Rc::clone(router_engine),
+            router_engine: Arc::clone(router_engine),
             file_path: file_path.to_string(),
         }))
     }

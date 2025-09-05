@@ -9,36 +9,89 @@
 use crate::router_engine::local_adress_matcher::{
     HostInterfacesLocalAddressMatcher, LocalAddressMatcher,
 };
+use crate::shared::error::Error::UnspecifiedError;
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::router_engine::RouterEngine;
 use async_trait::async_trait;
-use log::{info, warn};
+use log::{error, info, warn};
+use std::cell::RefCell;
+use std::fmt::{Display, Formatter};
+use std::ops::Deref;
+use std::sync::Mutex;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 pub struct MainRouterEngine {
     local_address_matcher: Box<dyn LocalAddressMatcher>,
+    verb_tx: Sender<RouterControlVerb>,
+    termination_rx: Receiver<TerminationNotification>,
+}
+
+#[derive(Debug)]
+enum RouterControlVerb {
+    StartRouting,
+    StopRouting,
+    AddPeer(PeerConfiguration),
+    RemovePeer(Uuid),
+}
+
+#[derive(Debug)]
+enum TerminationNotification {
+    InternalFailure,
+    ManagementTermination,
 }
 
 #[async_trait(?Send)]
 impl RouterEngine for MainRouterEngine {
-    async fn start(&self) -> crate::shared::prelude::Result<()> {
-        Ok(())
+    async fn start(&self) -> Result<()> {
+        match self.verb_tx.send(RouterControlVerb::StartRouting).await {
+            Ok(()) => {
+                info!("Successfully sent start routing verb");
+
+                Ok(())
+            }
+            Err(err) => {
+                warn!("Cannot send start routing verb: {}", err);
+
+                Err(UnspecifiedError(anyhow::Error::new(err)))
+            }
+        }
     }
 
-    async fn stop(&self) -> crate::shared::prelude::Result<()> {
-        todo!()
+    async fn stop(&self) -> Result<()> {
+        match self.verb_tx.send(RouterControlVerb::StopRouting).await {
+            Ok(()) => {
+                info!("Successfully sent stop routing verb");
+
+                Ok(())
+            }
+            Err(err) => {
+                warn!("Cannot send stop routing verb: {}", err);
+
+                Err(UnspecifiedError(anyhow::Error::new(err)))
+            }
+        }
     }
 
-    async fn initial_configuration(
-        &self,
-        router_configuration: RouterConfiguration,
-    ) -> crate::shared::prelude::Result<()> {
+    async fn initial_configuration(&self, router_configuration: RouterConfiguration) -> Result<()> {
         for peer_configuration in router_configuration.peer_configurations {
             if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher)
                 .await
             {
                 info!("Peer {} passed local address rule", &peer_configuration);
+
+                match self
+                    .verb_tx
+                    .send(RouterControlVerb::AddPeer(peer_configuration))
+                    .await
+                {
+                    Ok(()) => {
+                        info!("Successfully sent add peer message");
+                    }
+                    Err(err) => return Err(UnspecifiedError(anyhow::Error::new(err))),
+                }
             } else {
                 warn!(
                     "Peer {} does not pass local address rule",
@@ -50,10 +103,7 @@ impl RouterEngine for MainRouterEngine {
         Ok(())
     }
 
-    async fn add_peer(
-        &self,
-        peer_configuration: PeerConfiguration,
-    ) -> crate::shared::prelude::Result<()> {
+    async fn add_peer(&self, peer_configuration: PeerConfiguration) -> Result<()> {
         if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher).await {
             info!("Peer {} passed local address rule", &peer_configuration);
         } else {
@@ -66,21 +116,55 @@ impl RouterEngine for MainRouterEngine {
         Ok(())
     }
 
-    async fn remove_peer(&self, peer_id: &Uuid) -> crate::shared::prelude::Result<()> {
-        Ok(())
+    async fn remove_peer(&self, peer_id: &Uuid) -> Result<()> {
+        match self
+            .verb_tx
+            .send(RouterControlVerb::RemovePeer(peer_id.clone()))
+            .await
+        {
+            Ok(()) => {
+                info!("Successfully send removal message for peer id {peer_id}");
+
+                Ok(())
+            }
+            Err(err) => {
+                error!("Cannot send peer removeal message for peer id {peer_id}");
+
+                Err(UnspecifiedError(anyhow::Error::new(err)))
+            }
+        }
     }
 
-    async fn await_termination(&self) -> () {
+    async fn await_termination(&self, join_handle: JoinHandle<()>) -> () {
+        match join_handle.await {
+            Ok(()) => info!("Router event loop finished"),
+            Err(err) => error!("Joining router event loop failed: {}", err),
+        }
         ()
     }
 }
 
 impl MainRouterEngine {
-    pub fn new() -> Result<Box<dyn RouterEngine>> {
+    pub fn new() -> Result<(Box<dyn RouterEngine>, JoinHandle<()>)> {
         match HostInterfacesLocalAddressMatcher::new() {
-            Ok(local_address_matcher) => Ok(Box::new(MainRouterEngine {
-                local_address_matcher,
-            })),
+            Ok(local_address_matcher) => {
+                let (verb_tx, verb_rx) = channel(32);
+                let (termination_tx, termination_rx) = channel(32);
+
+                let join_handle =
+                    tokio::spawn(
+                        async move { Self::run_event_loop(verb_rx, termination_tx).await },
+                    );
+
+                Ok((
+                    Box::new(MainRouterEngine {
+                        local_address_matcher,
+                        verb_tx,
+                        termination_rx,
+                    }),
+                    join_handle,
+                ))
+            }
             Err(error) => Err(error),
         }
     }
@@ -95,5 +179,46 @@ impl MainRouterEngine {
             && !local_address_matcher
                 .is_local_address(&peer_confguration.remote_address.ip())
                 .await
+    }
+
+    async fn run_event_loop(
+        mut verb_rx: Receiver<RouterControlVerb>,
+        termination_tx: Sender<TerminationNotification>,
+    ) {
+        loop {
+            match verb_rx.recv().await {
+                Some(router_verb) => {
+                    info!("Received router control verb {}", router_verb);
+                }
+                None => {
+                    warn!("Router control channel closed");
+
+                    match termination_tx
+                        .send(TerminationNotification::InternalFailure)
+                        .await
+                    {
+                        Ok(()) => info!("Successfully send internal failure notification"),
+                        Err(send_err) => {
+                            error!("Cannot send internal failure notification: {}", send_err)
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+}
+
+impl Display for RouterControlVerb {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RouterControlVerb::StartRouting => write!(f, "StartRouting"),
+            RouterControlVerb::StopRouting => write!(f, "StopRouting"),
+            RouterControlVerb::AddPeer(peer_configuration) => {
+                write!(f, "AddPeer({peer_configuration})")
+            }
+            RouterControlVerb::RemovePeer(uuid) => write!(f, "RemovePeer({uuid})"),
+        }
     }
 }
