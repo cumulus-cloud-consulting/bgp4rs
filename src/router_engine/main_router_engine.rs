@@ -15,10 +15,7 @@ use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration
 use crate::shared::router_engine::RouterEngine;
 use async_trait::async_trait;
 use log::{error, info, warn};
-use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
-use std::sync::Mutex;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -26,7 +23,6 @@ use uuid::Uuid;
 pub struct MainRouterEngine {
     local_address_matcher: Box<dyn LocalAddressMatcher>,
     verb_tx: Sender<RouterControlVerb>,
-    termination_rx: Receiver<TerminationNotification>,
 }
 
 #[derive(Debug)]
@@ -35,12 +31,6 @@ enum RouterControlVerb {
     StopRouting,
     AddPeer(PeerConfiguration),
     RemovePeer(Uuid),
-}
-
-#[derive(Debug)]
-enum TerminationNotification {
-    InternalFailure,
-    ManagementTermination,
 }
 
 #[async_trait(?Send)]
@@ -149,18 +139,13 @@ impl MainRouterEngine {
         match HostInterfacesLocalAddressMatcher::new() {
             Ok(local_address_matcher) => {
                 let (verb_tx, verb_rx) = channel(32);
-                let (termination_tx, termination_rx) = channel(32);
 
-                let join_handle =
-                    tokio::spawn(
-                        async move { Self::run_event_loop(verb_rx, termination_tx).await },
-                    );
+                let join_handle = tokio::spawn(async move { Self::run_event_loop(verb_rx).await });
 
                 Ok((
                     Box::new(MainRouterEngine {
                         local_address_matcher,
                         verb_tx,
-                        termination_rx,
                     }),
                     join_handle,
                 ))
@@ -181,27 +166,24 @@ impl MainRouterEngine {
                 .await
     }
 
-    async fn run_event_loop(
-        mut verb_rx: Receiver<RouterControlVerb>,
-        termination_tx: Sender<TerminationNotification>,
-    ) {
+    async fn run_event_loop(mut verb_rx: Receiver<RouterControlVerb>) {
         loop {
             match verb_rx.recv().await {
                 Some(router_verb) => {
                     info!("Received router control verb {}", router_verb);
+
+                    match router_verb {
+                        RouterControlVerb::StopRouting => {
+                            info!("Stooping main router event loop");
+
+                            break;
+                        }
+
+                        _ => info!("Ignonring unimlemented router verb {}", router_verb),
+                    }
                 }
                 None => {
                     warn!("Router control channel closed");
-
-                    match termination_tx
-                        .send(TerminationNotification::InternalFailure)
-                        .await
-                    {
-                        Ok(()) => info!("Successfully send internal failure notification"),
-                        Err(send_err) => {
-                            error!("Cannot send internal failure notification: {}", send_err)
-                        }
-                    }
 
                     break;
                 }
