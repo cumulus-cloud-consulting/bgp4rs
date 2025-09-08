@@ -1,3 +1,4 @@
+use crate::shared::socket_addr_spec::SocketAddressSpec;
 // Copyright 2025 Rainer Bieniek <Rainer.Bieniek@cumulus-cloud-consulting.de>
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
@@ -7,7 +8,7 @@
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
 use crate::shared::as_number::AsNumber;
-use crate::shared::error::Error::{InvalidIpAddressError, ParseIpAddressError};
+use crate::shared::error::Error::InvalidIpAddressError;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
@@ -35,55 +36,12 @@ pub struct PeerConfigFile {
     local_address: SocketAddressSpec,
 }
 
-#[derive(Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct SocketAddressSpec {
-    ip_address: String,
-    port_number: Option<u16>,
-}
-
 impl EngineConfigFile {
     pub fn parse(file_path: &str) -> Result<EngineConfigFile, Error> {
         EngineConfigFile::with_layers(&[
             Layer::Yaml(file_path.into()),
             Layer::Env(Some("BGP4RS_".to_string())),
         ])
-    }
-}
-
-impl Display for SocketAddressSpec {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "IP Address {}, port number{}",
-            &self.ip_address,
-            &self.port_number.unwrap_or(0)
-        )
-    }
-}
-
-impl TryInto<SocketAddr> for SocketAddressSpec {
-    type Error = crate::shared::prelude::Error;
-
-    fn try_into(self) -> Result<SocketAddr, Self::Error> {
-        if self.ip_address.is_empty() {
-            return Err(InvalidIpAddressError {
-                ip_address: self.ip_address,
-            });
-        }
-
-        match IpAddr::from_str(self.ip_address.as_str()) {
-            Ok(addr) => {
-                if addr.is_loopback() || addr.is_multicast() {
-                    return Err(InvalidIpAddressError {
-                        ip_address: self.ip_address,
-                    });
-                }
-
-                Ok(SocketAddr::new(addr, self.port_number.unwrap_or(179)))
-            }
-            Err(err) => Err(ParseIpAddressError(err)),
-        }
     }
 }
 
@@ -97,14 +55,16 @@ impl Display for PeerConfigFile {
     }
 }
 
+const BGP4_DEFAULT_PORT_NUMBER: u16 = 179;
+
 impl TryInto<PeerConfiguration> for PeerConfigFile {
     type Error = crate::shared::prelude::Error;
 
     fn try_into(self) -> Result<PeerConfiguration, Self::Error> {
         info!("Processing peer configuration file entry {}", &self);
 
-        match TryInto::<SocketAddr>::try_into(self.local_address) {
-            Ok(local_address) => match TryInto::<SocketAddr>::try_into(self.peer_address) {
+        match TryInto::<SocketAddr>::try_into(self.local_address.with_default_port(BGP4_DEFAULT_PORT_NUMBER)) {
+            Ok(local_address) => match TryInto::<SocketAddr>::try_into(self.peer_address.with_default_port(BGP4_DEFAULT_PORT_NUMBER)) {
                 Ok(remote_address) => {
                     let local_ip_address = &local_address.ip();
                     let remote_ip_address = &remote_address.ip();
@@ -168,151 +128,6 @@ impl TryInto<RouterConfiguration> for EngineConfigFile {
 mod tests {
     use super::*;
     use std::net::Ipv4Addr;
-
-    #[test]
-    fn should_convert_ipv4_address_spec_without_port_number() {
-        let spec = SocketAddressSpec {
-            ip_address: "192.168.1.1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                assert_eq!(addr.ip(), Ipv4Addr::new(192, 168, 1, 1));
-                assert_eq!(addr.port(), 179);
-            }
-            Err(err) => panic!("Received error: {err}"),
-        }
-    }
-
-    #[test]
-    fn should_convert_ipv4_address_spec_with_port_number() {
-        let spec = SocketAddressSpec {
-            ip_address: "192.168.1.1".to_string(),
-            port_number: Some(1179),
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                assert_eq!(addr.ip(), Ipv4Addr::new(192, 168, 1, 1));
-                assert_eq!(addr.port(), 1179);
-            }
-            Err(err) => panic!("Received error: {err}"),
-        }
-    }
-
-    #[test]
-    fn should_not_convert_ipv4_address_spec_for_localhost() {
-        let spec = SocketAddressSpec {
-            ip_address: "127.0.0.1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                panic!("Should not have been able to convert localhost address.");
-            }
-            Err(err) => {}
-        }
-    }
-
-    #[test]
-    fn should_not_convert_ipv4_address_spec_for_multicast() {
-        let spec = SocketAddressSpec {
-            ip_address: "239.1.1.1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                panic!("Should not have been able to convert multicast address.");
-            }
-            Err(err) => {}
-        }
-    }
-
-    #[test]
-    fn should_not_convert_ipv4_address_spec_for_incomplete_address() {
-        let spec = SocketAddressSpec {
-            ip_address: "192.168.1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                panic!("Should not have been able to convert localhost address.");
-            }
-            Err(err) => {}
-        }
-    }
-
-    #[test]
-    fn should_convert_ipv6_address_spec_without_port_number() {
-        let spec = SocketAddressSpec {
-            ip_address: "2001:4860:4860::8888".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                assert_eq!(
-                    addr.ip(),
-                    Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)
-                );
-                assert_eq!(addr.port(), 179);
-            }
-            Err(err) => panic!("Received error: {err}"),
-        }
-    }
-
-    #[test]
-    fn should_convert_ipv6_address_spec_with_port_number() {
-        let spec = SocketAddressSpec {
-            ip_address: "2001:4860:4860::8888".to_string(),
-            port_number: Some(1179),
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                assert_eq!(
-                    addr.ip(),
-                    Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)
-                );
-                assert_eq!(addr.port(), 1179);
-            }
-            Err(err) => panic!("Received error: {err}"),
-        }
-    }
-
-    #[test]
-    fn should_not_convert_ipv6_address_spec_for_localhost() {
-        let spec = SocketAddressSpec {
-            ip_address: "::1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                panic!("Should not have been able to convert localhost address.");
-            }
-            Err(err) => {}
-        }
-    }
-
-    #[test]
-    fn should_not_convert_ipv6_address_spec_for_multicast() {
-        let spec = SocketAddressSpec {
-            ip_address: "ff02::1".to_string(),
-            port_number: None,
-        };
-
-        match TryInto::<SocketAddr>::try_into(spec) {
-            Ok(addr) => {
-                panic!("Should not have been able to convert multicast address.");
-            }
-            Err(err) => {}
-        }
-    }
 
     #[test]
     fn should_convert_peer_config_file() {
