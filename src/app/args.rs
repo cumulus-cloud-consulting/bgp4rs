@@ -13,6 +13,7 @@ use crate::shared::error::Error::{
 };
 use crate::shared::prelude::Result;
 use crate::shared::router_engine::RouterEngine;
+use crate::shared::socket_addr_spec::SocketAddressSpec;
 use clap::{Parser, ValueEnum};
 use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;
@@ -35,6 +36,14 @@ pub struct Args {
     /// configuration type to be applied. Defaults to file based if not specified
     #[arg(value_enum, short, long, default_value_t = ConfigType::File)]
     pub config_type: ConfigType,
+
+    /// Bind address for embedded web server
+    #[arg(short, long, env("WEB_SERVER_BIND_ADDR"))]
+    pub http_sever_bind_addr: Option<String>,
+
+    /// Bind address for embedded web server
+    #[arg(short, long, env("WEB_SERVER_PORT"))]
+    pub http_sever_port: Option<u16>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -96,5 +105,16 @@ impl Args {
                 Err(err) => Err(UnspecifiedError(err)),
             }
         }
+    }
+
+    pub fn http_server_binding(&self) -> Option<SocketAddressSpec> {
+        if let Some(ip_addr_spec) = self.http_sever_bind_addr.clone()
+            && let Some(port_number) = self.http_sever_port
+        {
+            Some(SocketAddressSpec {
+                ip_address: ip_addr_spec,
+                port_number: Some(port_number),
+            })
+        } else { None }
     }
 }
