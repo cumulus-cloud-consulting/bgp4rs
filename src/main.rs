@@ -28,8 +28,7 @@ async fn main() {
                 match args.config_provider(&router_engine) {
                     Ok(config_provider) => match config_provider.provide_configuration() {
                         Ok(initial_configuration) => {
-                            match router_engine
-                                .initial_configuration(initial_configuration)
+                            match router_engine.initial_configuration(initial_configuration)
                                 .await
                             {
                                 Ok(()) => {
