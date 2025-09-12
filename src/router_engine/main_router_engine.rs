@@ -6,22 +6,21 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
-use crate::router_engine::local_adress_matcher::{
-    HostInterfacesLocalAddressMatcher, LocalAddressMatcher,
-};
 use crate::shared::error::Error::UnspecifiedError;
+use crate::shared::local_adress_matcher::LocalAddressMatcher;
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::router_engine::RouterEngine;
 use async_trait::async_trait;
 use log::{error, info, warn};
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 pub struct MainRouterEngine {
-    local_address_matcher: Box<dyn LocalAddressMatcher>,
+    local_address_matcher: Arc<Box<dyn LocalAddressMatcher>>,
     verb_tx: Sender<RouterControlVerb>,
 }
 
@@ -135,23 +134,20 @@ impl RouterEngine for MainRouterEngine {
 }
 
 impl MainRouterEngine {
-    pub fn new() -> Result<(Box<dyn RouterEngine>, JoinHandle<()>)> {
-        match HostInterfacesLocalAddressMatcher::new() {
-            Ok(local_address_matcher) => {
-                let (verb_tx, verb_rx) = channel(32);
+    pub fn new(
+        local_address_matcher: Arc<Box<dyn LocalAddressMatcher>>,
+    ) -> Result<(Box<dyn RouterEngine>, JoinHandle<()>)> {
+        let (verb_tx, verb_rx) = channel(32);
 
-                let join_handle = tokio::spawn(async move { Self::run_event_loop(verb_rx).await });
+        let join_handle = tokio::spawn(async move { Self::run_event_loop(verb_rx).await });
 
-                Ok((
-                    Box::new(MainRouterEngine {
-                        local_address_matcher,
-                        verb_tx,
-                    }),
-                    join_handle,
-                ))
-            }
-            Err(error) => Err(error),
-        }
+        Ok((
+            Box::new(MainRouterEngine {
+                local_address_matcher,
+                verb_tx,
+            }),
+            join_handle,
+        ))
     }
 
     async fn verify_local_addres_rule(

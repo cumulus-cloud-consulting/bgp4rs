@@ -11,6 +11,7 @@ use app::args::parse;
 use log::{error, info};
 use std::process;
 use std::sync::Arc;
+use crate::shared::local_adress_matcher::HostInterfacesLocalAddressMatcher;
 
 mod app;
 mod config_file;
@@ -22,45 +23,57 @@ async fn main() {
     match parse() {
         Ok(args) => match args.initialize_logging() {
             Ok(_) => {
-                let (t_router_engine, join_handle) = MainRouterEngine::new().unwrap();
-                let router_engine = Arc::new(t_router_engine);
+                match HostInterfacesLocalAddressMatcher::new() {
+                    Ok(local_address_matcher) => {
+                        let local_address_matcher = Arc::new(local_address_matcher);
+                        let (t_router_engine, join_handle) = MainRouterEngine::new(local_address_matcher).unwrap();
+                        let router_engine = Arc::new(t_router_engine);
 
-                match args.config_provider(&router_engine) {
-                    Ok(config_provider) => match config_provider.provide_configuration() {
-                        Ok(initial_configuration) => {
-                            match router_engine.initial_configuration(initial_configuration)
-                                .await
-                            {
-                                Ok(()) => {
-                                    info!("Starting router engine");
+                        if let Some(http_bind_address) = args.http_server_binding() {
+                        }
 
-                                    match router_engine.start().await {
+                        match args.config_provider(&router_engine) {
+                            Ok(config_provider) => match config_provider.provide_configuration() {
+                                Ok(initial_configuration) => {
+                                    match router_engine.initial_configuration(initial_configuration)
+                                        .await
+                                    {
                                         Ok(()) => {
-                                            router_engine.await_termination(join_handle).await;
+                                            info!("Starting router engine");
 
-                                            info!("Router engine terminated");
+                                            match router_engine.start().await {
+                                                Ok(()) => {
+                                                    router_engine.await_termination(join_handle).await;
+
+                                                    info!("Router engine terminated");
+                                                }
+                                                Err(err) => {
+                                                    error!("Error starting routing engine: {err}");
+                                                    process::exit(1);
+                                                }
+                                            }
                                         }
                                         Err(err) => {
-                                            error!("Error starting routing engine: {err}");
+                                            error!(
+                                        "Error providing initial configuration to router engine: {err}"
+                                    );
                                             process::exit(1);
                                         }
                                     }
                                 }
                                 Err(err) => {
-                                    error!(
-                                        "Error providing initial configuration to router engine: {err}"
-                                    );
+                                    error!("Error loading configuration: {err}");
                                     process::exit(1);
                                 }
+                            },
+                            Err(err) => {
+                                eprintln!("Error determining configuration provider: {err}");
+                                process::exit(1);
                             }
-                        }
-                        Err(err) => {
-                            error!("Error loading configuration: {err}");
-                            process::exit(1);
                         }
                     },
                     Err(err) => {
-                        eprintln!("Error determining configuration provider: {err}");
+                        eprintln!("Error initializing local interface address matcher: {err}");
                         process::exit(1);
                     }
                 }
@@ -76,3 +89,4 @@ async fn main() {
         }
     }
 }
+
