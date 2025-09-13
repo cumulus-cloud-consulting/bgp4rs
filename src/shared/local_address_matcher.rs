@@ -30,7 +30,7 @@ impl LocalAddressMatcher for HostInterfacesLocalAddressMatcher {
 }
 
 impl HostInterfacesLocalAddressMatcher {
-    pub fn new() -> Result<Box<dyn LocalAddressMatcher>> {
+    pub fn new() -> Result<Box<dyn LocalAddressMatcher + Send + Sync>> {
         match NetworkInterface::show() {
             Ok(network_interfaces) => {
                 let mut hosts_addrs: Vec<IpAddr> = Vec::new();

@@ -8,6 +8,7 @@
 //
 use log::SetLoggerError;
 use log4rs::config::runtime::ConfigErrors;
+use std::net::SocketAddr;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -30,6 +31,10 @@ pub enum Error {
     ParseIpAddressError(#[from] std::net::AddrParseError),
     #[error("Invalid value '{ip_address}' provided for IP number")]
     InvalidIpAddressError { ip_address: String },
+    #[error("Cannot bind to '{bind_addr}' provided for IP number")]
+    InvalidBindAddressError { bind_addr: SocketAddr },
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
     #[error(transparent)]
     UnspecifiedError(#[from] anyhow::Error),
 }

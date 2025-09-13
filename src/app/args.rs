@@ -74,19 +74,17 @@ pub fn parse() -> Result<Args> {
 impl Args {
     pub fn config_provider(
         &self,
-        router_engine: &Arc<Box<dyn RouterEngine>>,
+        _router_engine: &Arc<Box<dyn RouterEngine + Send + Sync>>,
     ) -> Result<Box<dyn ConfigProvider>> {
         match self.config_type {
-            ConfigType::File => {
-                ConfigFileProvider::new(router_engine, self.router_config_path.as_str())
-            }
+            ConfigType::File => ConfigFileProvider::new(self.router_config_path.as_str()),
         }
     }
 
     pub fn initialize_logging(&self) -> Result<()> {
         let log_file_path = Path::new(&self.log_config_path.as_str()).to_path_buf();
 
-        if (!log_file_path.exists()) {
+        if !log_file_path.exists() {
             let stdout = ConsoleAppender::builder().build();
 
             match Config::builder()
@@ -108,13 +106,15 @@ impl Args {
     }
 
     pub fn http_server_binding(&self) -> Option<SocketAddressSpec> {
-        if let Some(ip_addr_spec) = self.http_sever_bind_addr.clone()
+        if let Some(ip_addr_spec) = self.http_sever_bind_addr.as_ref()
             && let Some(port_number) = self.http_sever_port
         {
-            Some(SocketAddressSpec {
-                ip_address: ip_addr_spec,
-                port_number: Some(port_number),
-            })
-        } else { None }
+            Some(SocketAddressSpec::new_allowing_localhost(
+                ip_addr_spec,
+                &Some(port_number),
+            ))
+        } else {
+            None
+        }
     }
 }

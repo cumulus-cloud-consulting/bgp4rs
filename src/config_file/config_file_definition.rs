@@ -1,4 +1,3 @@
-use crate::shared::socket_addr_spec::SocketAddressSpec;
 // Copyright 2025 Rainer Bieniek <Rainer.Bieniek@cumulus-cloud-consulting.de>
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
@@ -10,12 +9,11 @@ use crate::shared::socket_addr_spec::SocketAddressSpec;
 use crate::shared::as_number::AsNumber;
 use crate::shared::error::Error::InvalidIpAddressError;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
-use log::{error, info, warn};
+use crate::shared::socket_addr_spec::SocketAddressSpec;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
-use std::fmt::{write, Display, Formatter};
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
-use std::str::FromStr;
-use std::string::ParseError;
+use std::fmt::{Display, Formatter};
+use std::net::SocketAddr;
 use twelf::{config, Error, Layer};
 use uuid::Uuid;
 
@@ -63,8 +61,14 @@ impl TryInto<PeerConfiguration> for PeerConfigFile {
     fn try_into(self) -> Result<PeerConfiguration, Self::Error> {
         info!("Processing peer configuration file entry {}", &self);
 
-        match TryInto::<SocketAddr>::try_into(self.local_address.with_default_port(BGP4_DEFAULT_PORT_NUMBER)) {
-            Ok(local_address) => match TryInto::<SocketAddr>::try_into(self.peer_address.with_default_port(BGP4_DEFAULT_PORT_NUMBER)) {
+        match TryInto::<SocketAddr>::try_into(
+            self.local_address
+                .with_default_port(BGP4_DEFAULT_PORT_NUMBER),
+        ) {
+            Ok(local_address) => match TryInto::<SocketAddr>::try_into(
+                self.peer_address
+                    .with_default_port(BGP4_DEFAULT_PORT_NUMBER),
+            ) {
                 Ok(remote_address) => {
                     let local_ip_address = &local_address.ip();
                     let remote_ip_address = &remote_address.ip();
@@ -134,14 +138,8 @@ mod tests {
         let peer_spec = PeerConfigFile {
             peer_as: AsNumber::Small(1234),
             peer_name: "Some peer".to_string(),
-            peer_address: SocketAddressSpec {
-                ip_address: "192.168.1.1".to_string(),
-                port_number: None,
-            },
-            local_address: SocketAddressSpec {
-                ip_address: "192.168.2.2".to_string(),
-                port_number: None,
-            },
+            peer_address: SocketAddressSpec::new(&"192.168.1.1", &None),
+            local_address: SocketAddressSpec::new(&"192.168.2.2", &None),
         };
 
         match TryInto::<PeerConfiguration>::try_into(peer_spec) {
@@ -166,14 +164,8 @@ mod tests {
         let peer_spec = PeerConfigFile {
             peer_as: AsNumber::Small(1234),
             peer_name: "Some peer".to_string(),
-            peer_address: SocketAddressSpec {
-                ip_address: "192.168.1.1".to_string(),
-                port_number: None,
-            },
-            local_address: SocketAddressSpec {
-                ip_address: "127.0.0.1".to_string(),
-                port_number: None,
-            },
+            peer_address: SocketAddressSpec::new(&"192.168.1.1", &None),
+            local_address: SocketAddressSpec::new(&"127.0.0.1", &None),
         };
 
         match TryInto::<PeerConfiguration>::try_into(peer_spec) {
@@ -187,14 +179,8 @@ mod tests {
         let peer_spec = PeerConfigFile {
             peer_as: AsNumber::Small(1234),
             peer_name: "Some peer".to_string(),
-            peer_address: SocketAddressSpec {
-                ip_address: "127.0.0.1".to_string(),
-                port_number: None,
-            },
-            local_address: SocketAddressSpec {
-                ip_address: "192.168.2.2".to_string(),
-                port_number: None,
-            },
+            peer_address: SocketAddressSpec::new(&"127.0.0.1", &None),
+            local_address: SocketAddressSpec::new(&"192.168.2.2", &None),
         };
 
         match TryInto::<PeerConfiguration>::try_into(peer_spec) {
@@ -208,14 +194,8 @@ mod tests {
         let peer_spec = PeerConfigFile {
             peer_as: AsNumber::Small(1234),
             peer_name: "Some peer".to_string(),
-            peer_address: SocketAddressSpec {
-                ip_address: "192.168.1.1".to_string(),
-                port_number: None,
-            },
-            local_address: SocketAddressSpec {
-                ip_address: "192.168.1.1".to_string(),
-                port_number: None,
-            },
+            peer_address: SocketAddressSpec::new(&"192.168.1.1", &None),
+            local_address: SocketAddressSpec::new(&"192.168.1.1", &None),
         };
 
         match TryInto::<PeerConfiguration>::try_into(peer_spec) {
@@ -231,14 +211,8 @@ mod tests {
             peers: vec![PeerConfigFile {
                 peer_as: AsNumber::Small(1234),
                 peer_name: "Some peer".to_string(),
-                peer_address: SocketAddressSpec {
-                    ip_address: "192.168.1.1".to_string(),
-                    port_number: None,
-                },
-                local_address: SocketAddressSpec {
-                    ip_address: "192.168.2.2".to_string(),
-                    port_number: None,
-                },
+                peer_address: SocketAddressSpec::new(&"192.168.1.1", &None),
+                local_address: SocketAddressSpec::new(&"192.168.2.2", &None),
             }],
         };
 
@@ -271,14 +245,8 @@ mod tests {
             peers: vec![PeerConfigFile {
                 peer_as: AsNumber::Small(1234),
                 peer_name: "Some peer".to_string(),
-                peer_address: SocketAddressSpec {
-                    ip_address: "192.168.1.1".to_string(),
-                    port_number: None,
-                },
-                local_address: SocketAddressSpec {
-                    ip_address: "192.168.1.1".to_string(),
-                    port_number: None,
-                },
+                peer_address: SocketAddressSpec::new(&"192.168.1.1", &None),
+                local_address: SocketAddressSpec::new(&"192.168.1.1", &None),
             }],
         };
 

@@ -7,7 +7,7 @@
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
 use crate::shared::error::Error::UnspecifiedError;
-use crate::shared::local_adress_matcher::LocalAddressMatcher;
+use crate::shared::local_address_matcher::LocalAddressMatcher;
 use crate::shared::prelude::Result;
 use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::router_engine::RouterEngine;
@@ -20,7 +20,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 pub struct MainRouterEngine {
-    local_address_matcher: Arc<Box<dyn LocalAddressMatcher>>,
+    local_address_matcher: Arc<Box<dyn LocalAddressMatcher + Send + Sync>>,
     verb_tx: Sender<RouterControlVerb>,
 }
 
@@ -135,15 +135,15 @@ impl RouterEngine for MainRouterEngine {
 
 impl MainRouterEngine {
     pub fn new(
-        local_address_matcher: Arc<Box<dyn LocalAddressMatcher>>,
-    ) -> Result<(Box<dyn RouterEngine>, JoinHandle<()>)> {
+        local_address_matcher: &Arc<Box<dyn LocalAddressMatcher + Send + Sync>>,
+    ) -> Result<(Box<dyn RouterEngine + Send + Sync>, JoinHandle<()>)> {
         let (verb_tx, verb_rx) = channel(32);
 
         let join_handle = tokio::spawn(async move { Self::run_event_loop(verb_rx).await });
 
         Ok((
             Box::new(MainRouterEngine {
-                local_address_matcher,
+                local_address_matcher: local_address_matcher.clone(),
                 verb_tx,
             }),
             join_handle,
@@ -152,7 +152,7 @@ impl MainRouterEngine {
 
     async fn verify_local_addres_rule(
         peer_confguration: &PeerConfiguration,
-        local_address_matcher: &Box<dyn LocalAddressMatcher>,
+        local_address_matcher: &Box<dyn LocalAddressMatcher + Send + Sync>,
     ) -> bool {
         local_address_matcher
             .is_local_address(&peer_confguration.local_address.ip())
