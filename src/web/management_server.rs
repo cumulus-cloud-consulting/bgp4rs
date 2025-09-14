@@ -44,18 +44,13 @@ impl ManagementServer {
                 .with_state(shared_state);
 
             match tokio::net::TcpListener::bind(bind_addr).await {
-                Ok(listener) => match axum::serve(listener, app).await {
-                    Ok(_) => {
-                        info!("Management server listening on {}", bind_addr);
+                Ok(listener) => {
+                    tokio::spawn(async move { axum::serve(listener, app).await });
 
-                        Ok(Box::new(ManagementServer {}))
-                    }
-                    Err(err) => {
-                        error!("Cannot start management server: {}", err);
+                    info!("Management server listening on {}", bind_addr);
 
-                        Err(IoError(err))
-                    }
-                },
+                    Ok(Box::new(ManagementServer {}))
+                }
                 Err(err) => {
                     error!("Cannot bind management server to {}: {}", bind_addr, err);
 

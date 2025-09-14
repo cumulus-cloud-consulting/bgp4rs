@@ -28,7 +28,7 @@ async fn main() {
             Ok(_) => match HostInterfacesLocalAddressMatcher::new() {
                 Ok(local_address_matcher) => {
                     let local_address_matcher = Arc::new(local_address_matcher);
-                    let (t_router_engine, join_handle) =
+                    let (t_router_engine, mut status_rx) =
                         MainRouterEngine::new(&local_address_matcher).unwrap();
                     let router_engine = Arc::new(t_router_engine);
                     let mut subsystems: Vec<Box<dyn Subsystem>> = Vec::new();
@@ -61,7 +61,9 @@ async fn main() {
 
                                         match router_engine.start().await {
                                             Ok(()) => {
-                                                router_engine.await_termination(join_handle).await;
+                                                router_engine
+                                                    .await_termination(&mut status_rx)
+                                                    .await;
 
                                                 for subsystem in subsystems {
                                                     subsystem.stop().await;

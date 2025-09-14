@@ -16,7 +16,6 @@ use log::{error, info, warn};
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 pub struct MainRouterEngine {
@@ -30,6 +29,11 @@ enum RouterControlVerb {
     StopRouting,
     AddPeer(PeerConfiguration),
     RemovePeer(Uuid),
+}
+
+#[derive(Debug)]
+pub enum RouterStatusVerb {
+    Terminated,
 }
 
 #[async_trait]
@@ -124,11 +128,15 @@ impl RouterEngine for MainRouterEngine {
         }
     }
 
-    async fn await_termination(&self, join_handle: JoinHandle<()>) -> () {
-        match join_handle.await {
-            Ok(()) => info!("Router event loop finished"),
-            Err(err) => error!("Joining router event loop failed: {}", err),
+    async fn await_termination(&self, status_rx: &mut Receiver<RouterStatusVerb>) -> () {
+        info!("Awaiting router loop termination signal");
+
+        if let Some(verb) = status_rx.recv().await {
+            info!("Router event loop finished by verb {}", verb);
         }
+
+        info!("Done waiting for termination signal");
+
         ()
     }
 }
@@ -136,17 +144,21 @@ impl RouterEngine for MainRouterEngine {
 impl MainRouterEngine {
     pub fn new(
         local_address_matcher: &Arc<Box<dyn LocalAddressMatcher + Send + Sync>>,
-    ) -> Result<(Box<dyn RouterEngine + Send + Sync>, JoinHandle<()>)> {
+    ) -> Result<(
+        Box<dyn RouterEngine + Send + Sync>,
+        Receiver<RouterStatusVerb>,
+    )> {
         let (verb_tx, verb_rx) = channel(32);
+        let (status_tx, status_rx) = channel(32);
 
-        let join_handle = tokio::spawn(async move { Self::run_event_loop(verb_rx).await });
+        tokio::spawn(async move { Self::run_event_loop(verb_rx, status_tx).await });
 
         Ok((
             Box::new(MainRouterEngine {
                 local_address_matcher: local_address_matcher.clone(),
                 verb_tx,
             }),
-            join_handle,
+            status_rx,
         ))
     }
 
@@ -162,7 +174,10 @@ impl MainRouterEngine {
                 .await
     }
 
-    async fn run_event_loop(mut verb_rx: Receiver<RouterControlVerb>) {
+    async fn run_event_loop(
+        mut verb_rx: Receiver<RouterControlVerb>,
+        status_tx: Sender<RouterStatusVerb>,
+    ) {
         loop {
             match verb_rx.recv().await {
                 Some(router_verb) => {
@@ -174,8 +189,15 @@ impl MainRouterEngine {
 
                             break;
                         }
-
-                        _ => info!("Ignoring unimplemented router verb {}", router_verb),
+                        RouterControlVerb::AddPeer(peer_configuration) => {
+                            info!("Adding new peer {} to router engine", &peer_configuration);
+                        }
+                        RouterControlVerb::RemovePeer(peer_id) => {
+                            info!("Removing peer {} from router engine", &peer_id);
+                        }
+                        RouterControlVerb::StartRouting => {
+                            info!("Start routing processes");
+                        }
                     }
                 }
                 None => {
@@ -184,6 +206,10 @@ impl MainRouterEngine {
                     break;
                 }
             }
+        }
+
+        if let Err(err) = status_tx.send(RouterStatusVerb::Terminated).await {
+            warn!("Cannot send router termination verb: {}", err);
         }
 
         info!("Exiting router event loop");
@@ -199,6 +225,14 @@ impl Display for RouterControlVerb {
                 write!(f, "AddPeer({peer_configuration})")
             }
             RouterControlVerb::RemovePeer(uuid) => write!(f, "RemovePeer({uuid})"),
+        }
+    }
+}
+
+impl Display for RouterStatusVerb {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RouterStatusVerb::Terminated => write!(f, "Terminated"),
         }
     }
 }
