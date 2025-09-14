@@ -1,4 +1,3 @@
-use crate::shared::error::Error;
 use crate::shared::error::Error::{InvalidBindAddressError, IoError};
 use crate::shared::local_address_matcher::LocalAddressMatcher;
 use crate::shared::prelude::Result;
@@ -6,15 +5,19 @@ use crate::shared::router_engine::RouterEngine;
 use crate::shared::socket_addr_spec::SocketAddressSpec;
 use crate::shared::subsystem::Subsystem;
 use async_trait::async_trait;
+use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::Router;
 use log::{error, info};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-pub struct ManagementServer {
+pub struct ManagementServer {}
+
+#[derive(Clone)]
+struct AppState {
     router_engine: Arc<Box<dyn RouterEngine + Send + Sync>>,
 }
 
@@ -30,20 +33,23 @@ impl ManagementServer {
             .is_local_address(&bind_addr.ip())
             .await
         {
-            let stop_engine = router_engine.clone();
+            info!("Starting management HTTP server on {}", &bind_addr);
 
-            let app = Router::new().route(
-                "/stop",
-                post(|| async {
-                    // stop_router(stop_engine).await;
-                }),
-            );
+            let shared_state = Arc::new(AppState {
+                router_engine: router_engine.clone(),
+            });
+
+            let app = Router::new()
+                .route("/stop", post(stop_router))
+                .with_state(shared_state);
 
             match tokio::net::TcpListener::bind(bind_addr).await {
                 Ok(listener) => match axum::serve(listener, app).await {
-                    Ok(_) => Ok(Box::new(ManagementServer {
-                        router_engine: router_engine.clone(),
-                    })),
+                    Ok(_) => {
+                        info!("Management server listening on {}", bind_addr);
+
+                        Ok(Box::new(ManagementServer {}))
+                    }
                     Err(err) => {
                         error!("Cannot start management server: {}", err);
 
@@ -64,17 +70,11 @@ impl ManagementServer {
     }
 }
 
-#[async_trait]
-impl Subsystem for ManagementServer {
-    async fn stop(&self) -> () {
-        ()
-    }
-}
-
-async fn stop_router(router_engine: Arc<Box<dyn RouterEngine + Send + Sync>>) -> Response {
-    match router_engine.stop().await {
+async fn stop_router(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    match state.router_engine.stop().await {
         Ok(_) => {
             info!("Stopped router from management server");
+
             StatusCode::OK.into_response()
         }
         Err(err) => {
@@ -82,5 +82,12 @@ async fn stop_router(router_engine: Arc<Box<dyn RouterEngine + Send + Sync>>) ->
 
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
+    }
+}
+
+#[async_trait]
+impl Subsystem for ManagementServer {
+    async fn stop(&self) -> () {
+        ()
     }
 }

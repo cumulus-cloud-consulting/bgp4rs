@@ -32,7 +32,7 @@ enum RouterControlVerb {
     RemovePeer(Uuid),
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RouterEngine for MainRouterEngine {
     async fn start(&self) -> Result<()> {
         match self.verb_tx.send(RouterControlVerb::StartRouting).await {
@@ -66,7 +66,7 @@ impl RouterEngine for MainRouterEngine {
 
     async fn initial_configuration(&self, router_configuration: RouterConfiguration) -> Result<()> {
         for peer_configuration in router_configuration.peer_configurations {
-            if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher)
+            if Self::verify_local_address_rule(&peer_configuration, &self.local_address_matcher)
                 .await
             {
                 info!("Peer {} passed local address rule", &peer_configuration);
@@ -93,7 +93,7 @@ impl RouterEngine for MainRouterEngine {
     }
 
     async fn add_peer(&self, peer_configuration: PeerConfiguration) -> Result<()> {
-        if Self::verify_local_addres_rule(&peer_configuration, &self.local_address_matcher).await {
+        if Self::verify_local_address_rule(&peer_configuration, &self.local_address_matcher).await {
             info!("Peer {} passed local address rule", &peer_configuration);
         } else {
             warn!(
@@ -117,7 +117,7 @@ impl RouterEngine for MainRouterEngine {
                 Ok(())
             }
             Err(err) => {
-                error!("Cannot send peer removeal message for peer id {peer_id}");
+                error!("Cannot send peer removal message for peer id {peer_id}");
 
                 Err(UnspecifiedError(anyhow::Error::new(err)))
             }
@@ -150,15 +150,15 @@ impl MainRouterEngine {
         ))
     }
 
-    async fn verify_local_addres_rule(
-        peer_confguration: &PeerConfiguration,
+    async fn verify_local_address_rule(
+        peer_configuration: &PeerConfiguration,
         local_address_matcher: &Box<dyn LocalAddressMatcher + Send + Sync>,
     ) -> bool {
         local_address_matcher
-            .is_local_address(&peer_confguration.local_address.ip())
+            .is_local_address(&peer_configuration.local_address.ip())
             .await
             && !local_address_matcher
-                .is_local_address(&peer_confguration.remote_address.ip())
+                .is_local_address(&peer_configuration.remote_address.ip())
                 .await
     }
 
@@ -170,12 +170,12 @@ impl MainRouterEngine {
 
                     match router_verb {
                         RouterControlVerb::StopRouting => {
-                            info!("Stooping main router event loop");
+                            info!("Stopping main router event loop");
 
                             break;
                         }
 
-                        _ => info!("Ignonring unimlemented router verb {}", router_verb),
+                        _ => info!("Ignoring unimplemented router verb {}", router_verb),
                     }
                 }
                 None => {
@@ -185,6 +185,8 @@ impl MainRouterEngine {
                 }
             }
         }
+
+        info!("Exiting router event loop");
     }
 }
 

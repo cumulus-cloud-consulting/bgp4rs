@@ -15,7 +15,7 @@ use uuid::Uuid;
 /// Trait definition for the router engine to implement
 ///
 ///
-#[async_trait(?Send)]
+#[async_trait]
 pub trait RouterEngine {
     /// Start the router engine:
     ///

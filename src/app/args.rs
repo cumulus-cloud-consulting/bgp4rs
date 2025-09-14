@@ -38,12 +38,12 @@ pub struct Args {
     pub config_type: ConfigType,
 
     /// Bind address for embedded web server
-    #[arg(short, long, env("WEB_SERVER_BIND_ADDR"))]
-    pub http_sever_bind_addr: Option<String>,
+    #[arg(long, env("WEB_SERVER_BIND_ADDR"))]
+    pub http_server_bind_addr: Option<String>,
 
     /// Bind address for embedded web server
-    #[arg(short, long, env("WEB_SERVER_PORT"))]
-    pub http_sever_port: Option<u16>,
+    #[arg(long, env("WEB_SERVER_PORT"))]
+    pub http_server_port: Option<u16>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -106,8 +106,8 @@ impl Args {
     }
 
     pub fn http_server_binding(&self) -> Option<SocketAddressSpec> {
-        if let Some(ip_addr_spec) = self.http_sever_bind_addr.as_ref()
-            && let Some(port_number) = self.http_sever_port
+        if let Some(ip_addr_spec) = self.http_server_bind_addr.as_ref()
+            && let Some(port_number) = self.http_server_port
         {
             Some(SocketAddressSpec::new_allowing_localhost(
                 ip_addr_spec,

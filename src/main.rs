@@ -63,6 +63,10 @@ async fn main() {
                                             Ok(()) => {
                                                 router_engine.await_termination(join_handle).await;
 
+                                                for subsystem in subsystems {
+                                                    subsystem.stop().await;
+                                                }
+
                                                 info!("Router engine terminated");
                                             }
                                             Err(err) => {
