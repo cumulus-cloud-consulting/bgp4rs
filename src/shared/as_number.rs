@@ -1,9 +1,17 @@
+// Copyright 2025 Rainer Bieniek <Rainer.Bieniek@cumulus-cloud-consulting.de>
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+//
 use serde::de::Error;
 use serde::{Deserializer, Serializer};
 use std::fmt;
 use std::fmt::Formatter;
 
-#[derive(Copy, Clone,Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum AsNumber {
     Small(u16),
     Extended(u32),
@@ -26,7 +34,11 @@ impl From<u16> for AsNumber {
 
 impl From<u32> for AsNumber {
     fn from(value: u32) -> Self {
-        if value <= 65535 { AsNumber::Small(value as u16) } else { AsNumber::Extended(value) }
+        if value <= 65535 {
+            AsNumber::Small(value as u16)
+        } else {
+            AsNumber::Extended(value)
+        }
     }
 }
 
@@ -39,7 +51,9 @@ impl TryFrom<u64> for AsNumber {
         } else if value <= std::u32::MAX as u64 {
             Ok(AsNumber::Extended(value as u32))
         } else {
-            Err(crate::shared::error::Error::InvalidAsNumberError { as_number : value as i64})
+            Err(crate::shared::error::Error::InvalidAsNumberError {
+                as_number: value as i64,
+            })
         }
     }
 }
@@ -48,7 +62,7 @@ impl fmt::Display for AsNumber {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             AsNumber::Small(number) => number.fmt(f),
-            AsNumber::Extended(number) => number.fmt(f)
+            AsNumber::Extended(number) => number.fmt(f),
         }
     }
 }
@@ -62,7 +76,7 @@ impl fmt::Debug for AsNumber {
 impl serde::Serialize for AsNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         match *self {
             AsNumber::Small(number) => serializer.serialize_u16(number),
@@ -74,7 +88,7 @@ impl serde::Serialize for AsNumber {
 impl<'de> serde::Deserialize<'de> for AsNumber {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_any(AsNumberVisitor)
     }
@@ -133,7 +147,6 @@ impl<'de> serde::de::Visitor<'de> for AsNumberVisitor {
         }
     }
 
-
     fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
     where
         E: Error,
@@ -164,7 +177,6 @@ impl<'de> serde::de::Visitor<'de> for AsNumberVisitor {
             Err(_) => Err(E::custom(format!("AS Number out of range: {}", v))),
         }
     }
-
 }
 
 #[cfg(test)]
@@ -177,7 +189,7 @@ mod tests {
     fn should_yield_small_as_number() {
         match AsNumber::from(4096u16) {
             AsNumber::Small(port_number) => assert_eq!(port_number, 4096),
-            AsNumber::Extended(_) => panic!("Should yield small AS number")
+            AsNumber::Extended(_) => panic!("Should yield small AS number"),
         }
     }
 
@@ -185,7 +197,7 @@ mod tests {
     fn should_yield_large_as_number_from_u32_number() {
         match AsNumber::from(131072u32) {
             AsNumber::Small(_) => panic!("Should yield small AS number"),
-            AsNumber::Extended(port_number) => assert_eq!(port_number, 131072)
+            AsNumber::Extended(port_number) => assert_eq!(port_number, 131072),
         }
     }
 
@@ -193,14 +205,14 @@ mod tests {
     fn should_yield_small_as_number_from_u16_number() {
         match AsNumber::from(4096u32) {
             AsNumber::Small(port_number) => assert_eq!(port_number, 4096),
-            AsNumber::Extended(_) => panic!("Should yield small AS number")
+            AsNumber::Extended(_) => panic!("Should yield small AS number"),
         }
     }
 
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct TestData {
-        as_number : AsNumber,
+        as_number: AsNumber,
     }
 
     #[test]
@@ -210,12 +222,11 @@ mod tests {
             "asNumber": 1
         }"#;
 
-
         let td: TestData = serde_json::from_str(data).unwrap();
 
         match td.as_number {
             AsNumber::Small(port_number) => assert_eq!(port_number, 1),
-            AsNumber::Extended(_) => panic!("Should yield small AS number")
+            AsNumber::Extended(_) => panic!("Should yield small AS number"),
         }
     }
 
@@ -226,12 +237,11 @@ mod tests {
             "asNumber": 4096
         }"#;
 
-
         let td: TestData = serde_json::from_str(data).unwrap();
 
         match td.as_number {
             AsNumber::Small(port_number) => assert_eq!(port_number, 4096),
-            AsNumber::Extended(_) => panic!("Should yield small AS number")
+            AsNumber::Extended(_) => panic!("Should yield small AS number"),
         }
     }
 
@@ -242,12 +252,11 @@ mod tests {
             "asNumber": 131072
         }"#;
 
-
         let td: TestData = serde_json::from_str(data).unwrap();
 
         match td.as_number {
             AsNumber::Small(_) => panic!("Should yield small AS number"),
-            AsNumber::Extended(port_number) => assert_eq!(port_number, 131072)
+            AsNumber::Extended(port_number) => assert_eq!(port_number, 131072),
         }
     }
 
@@ -258,11 +267,11 @@ mod tests {
             "asNumber": -1
         }"#;
 
-        let td : Result<TestData> = serde_json::from_str(data);
+        let td: Result<TestData> = serde_json::from_str(data);
 
         match td {
             Ok(_) => panic!("Should fail"),
-            Err(_) => ()
+            Err(_) => (),
         }
     }
 
@@ -273,11 +282,11 @@ mod tests {
             "asNumber": -4096
         }"#;
 
-        let td : Result<TestData> = serde_json::from_str(data);
+        let td: Result<TestData> = serde_json::from_str(data);
 
         match td {
             Ok(_) => panic!("Should fail"),
-            Err(_) => ()
+            Err(_) => (),
         }
     }
 
@@ -288,11 +297,11 @@ mod tests {
             "asNumber": -131072
         }"#;
 
-        let td : Result<TestData> = serde_json::from_str(data);
+        let td: Result<TestData> = serde_json::from_str(data);
 
         match td {
             Ok(_) => panic!("Should fail"),
-            Err(_) => ()
+            Err(_) => (),
         }
     }
 }
