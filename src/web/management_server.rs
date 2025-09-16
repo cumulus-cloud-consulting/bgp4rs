@@ -1,9 +1,9 @@
 use crate::shared::error::Error::{InvalidBindAddressError, IoError};
-use crate::shared::local_address_matcher::LocalAddressMatcher;
+use crate::shared::network::local_address_matcher::LocalAddressMatcher;
+use crate::shared::network::socket_addr_spec::SocketAddressSpec;
 use crate::shared::prelude::Result;
-use crate::shared::router_engine::RouterEngine;
-use crate::shared::socket_addr_spec::SocketAddressSpec;
-use crate::shared::subsystem::Subsystem;
+use crate::shared::services::router_engine::RouterEngine;
+use crate::shared::services::subsystem::Subsystem;
 use async_trait::async_trait;
 use axum::extract::State;
 use axum::http::StatusCode;

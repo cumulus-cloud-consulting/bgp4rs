@@ -7,11 +7,11 @@
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
 use crate::router_engine::main_router_engine::MainRouterEngine;
-use crate::shared::local_address_matcher::HostInterfacesLocalAddressMatcher;
-use crate::shared::subsystem::Subsystem;
 use crate::web::management_server::ManagementServer;
 use app::args::parse;
 use log::{error, info};
+use shared::network::local_address_matcher::HostInterfacesLocalAddressMatcher;
+use shared::services::subsystem::Subsystem;
 use std::process;
 use std::sync::Arc;
 

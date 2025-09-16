@@ -6,10 +6,10 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
-use crate::shared::as_number::AsNumber;
+use crate::shared::bgp::as_number::AsNumber;
+use crate::shared::config::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::error::Error::InvalidIpAddressError;
-use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
-use crate::shared::socket_addr_spec::SocketAddressSpec;
+use crate::shared::network::socket_addr_spec::SocketAddressSpec;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

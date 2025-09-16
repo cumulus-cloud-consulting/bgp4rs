@@ -7,8 +7,8 @@
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
 use crate::router_engine::main_router_engine::RouterStatusVerb;
+use crate::shared::config::router_configuration::{PeerConfiguration, RouterConfiguration};
 use crate::shared::prelude::Result;
-use crate::shared::router_configuration::{PeerConfiguration, RouterConfiguration};
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 use uuid::Uuid;

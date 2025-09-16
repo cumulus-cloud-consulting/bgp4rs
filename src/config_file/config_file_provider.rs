@@ -7,10 +7,10 @@
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
 use crate::config_file::config_file_definition::EngineConfigFile;
-use crate::shared::config_provider::ConfigProvider;
+use crate::shared::config::config_provider::ConfigProvider;
+use crate::shared::config::router_configuration::RouterConfiguration;
 use crate::shared::error::Error::ConfigurationFileError;
 use crate::shared::prelude::Result;
-use crate::shared::router_configuration::RouterConfiguration;
 use log::info;
 
 pub struct ConfigFileProvider {
