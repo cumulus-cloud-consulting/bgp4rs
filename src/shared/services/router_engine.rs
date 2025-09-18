@@ -17,6 +17,7 @@ use uuid::Uuid;
 ///
 ///
 #[async_trait]
+#[allow(dead_code)]
 pub trait RouterEngine {
     /// Start the router engine:
     ///

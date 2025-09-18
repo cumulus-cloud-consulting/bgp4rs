@@ -6,10 +6,4 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
-//! This module implements various HTTP server endpoints supported by the *bgp4rs* network
-//! daemon process.
-//!
-//! The supported HTTP-base ReST servers are:
-//! - Management API
-//! - Public API
-pub mod management_server;
+pub struct BgpPacket {}

@@ -37,13 +37,21 @@ pub struct Args {
     #[arg(value_enum, short, long, default_value_t = ConfigType::File)]
     pub config_type: ConfigType,
 
-    /// Bind address for embedded web server
-    #[arg(long, env("WEB_SERVER_BIND_ADDR"))]
-    pub http_server_bind_addr: Option<String>,
+    /// Bind address for embedded management web server
+    #[arg(long, env("MANAGEMENT_SERVER_BIND_ADDR"))]
+    pub management_server_bind_addr: Option<String>,
 
-    /// Bind address for embedded web server
-    #[arg(long, env("WEB_SERVER_PORT"))]
-    pub http_server_port: Option<u16>,
+    /// Bind address for embedded management web server
+    #[arg(long, env("MANAGEMENT_SERVER_PORT"))]
+    pub management_server_port: Option<u16>,
+
+    /// Bind address for embedded API web server
+    #[arg(long, env("API_SERVER_BIND_ADDR"))]
+    pub api_server_bind_addr: Option<String>,
+
+    /// Bind address for embedded API web server
+    #[arg(long, env("API_SERVER_PORT"))]
+    pub api_server_port: Option<u16>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -105,9 +113,21 @@ impl Args {
         }
     }
 
-    pub fn http_server_binding(&self) -> Option<SocketAddressSpec> {
-        if let Some(ip_addr_spec) = self.http_server_bind_addr.as_ref()
-            && let Some(port_number) = self.http_server_port
+    pub fn management_server_binding(&self) -> Option<SocketAddressSpec> {
+        if let Some(ip_addr_spec) = self.management_server_bind_addr.as_ref()
+            && let Some(port_number) = self.management_server_port
+        {
+            Some(SocketAddressSpec::new_allowing_localhost(
+                ip_addr_spec,
+                &Some(port_number),
+            ))
+        } else {
+            None
+        }
+    }
+    pub fn api_server_binding(&self) -> Option<SocketAddressSpec> {
+        if let Some(ip_addr_spec) = self.api_server_bind_addr.as_ref()
+            && let Some(port_number) = self.api_server_port
         {
             Some(SocketAddressSpec::new_allowing_localhost(
                 ip_addr_spec,

@@ -24,6 +24,7 @@ pub struct MainRouterEngine {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum RouterControlVerb {
     StartRouting,
     StopRouting,

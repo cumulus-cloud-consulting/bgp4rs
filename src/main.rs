@@ -6,6 +6,64 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
+//! ## BGP4RS
+//! A network daemon implementing the BGP4 protocol
+//!
+//! This crate implements a standalone network daemon acting as a peer in the communication
+//! between network routers exchanging network reachability information aka network routes
+//!
+//! While this kind of information is usually exchanged between Internet routers, it can become
+//! to gain a view into the routing information possessed by a particular network router.
+//!
+//! The purpose on this daemon implementation is to act as a bridge between one or more entities
+//! possessing the reachability information, the *routers*. and one or more entities consuming
+//! the reachability information as a snapshot in time or an initial snapshot followed by
+//! continuous stream of updates whenever the reachability information changes, the *monitors*.
+//!
+//! ### Supported RFC
+//! This implementation of the BGP4 protocol supports the protocol according to these
+//! standardization documents:
+//! - [RFC4271](https://datatracker.ietf.org/doc/html/rfc4271 "A Border Gateway Protocol 4 (BGP-4)")
+//!
+//! ### Usage
+//! The application support the following command-line options and environment variables:
+//! - **-c <CONFIG_TYPE>** or **--config-type <CONFIG_TYPE>**: Select which configuration
+//! source is used for obtaining peer configuration information. The available options are:
+//!     - **file** read configuration file. Requires a peer configuration file to be available
+//!  - **-r <ROUTER_CONFIG_PATH>** or **--router-config-path <ROUTER_CONFIG_PATH>**: Read the peer
+//! configuration file from the path denoted by the argument to this command-line options. It is
+//! only evaluated if the configuration type is *file* (default value). Alternatively, the value
+//! is read from the environment variable **ROUTER_CONFIG_PATH**.
+//! - **--management-server-bind-addr <MANAGEMENT_SERVER_BIND_ADDR>**: Bind the management web
+//! server to the given address in the form of an *IPv4* or an *IPv6* address. Alternatively,
+//! the value is derived from the environment variable **MANAGEMENT_SERVER_BIND_ADDR**.
+//! *Please note:* The management server is only started if the management server port number is
+//! also specified.
+//! - **--management-server-port <MANAGEMENT_SERVER_PORT>**: Bind the management web server to
+//!  the given port number (in the range *1* to *65535*). Alternatively,
+//! the value is derived from the environment variable **MANAGEMENT_SERVER_PORT**.
+//! *Please note:* The management server is only started if the management server bind address is
+//! also specified.
+//! - **--api-server-bind-addr <API_SERVER_BIND_ADDR>**: Bind the API web
+//! server to the given address in the form of an *IPv4* or an *IPv6* address. Alternatively,
+//! the value is derived from the environment variable **API_SERVER_BIND_ADDR**.
+//! *Please note:* The API server is only started if the API server port number is also
+//! specified.
+//! - **--api-server-port <API_SERVER_PORT>**: Bind the API web server to
+//!  the given port number (in the range *1* to *65535*). Alternatively,
+//! the value is derived from the environment variable **API_SERVER_PORT**.
+//! *Please note:* The API server is only started if the API server bind address is
+//! also specified.
+//!
+//! ### Builtin management server
+//! If enabled, the management server supports the following ReST endpoints:
+//! - **POST /stop**: Stop the routing processes, terminate all active connections and stop the
+//! *bgp4rs* process.
+//!
+//! ### Builtin API server
+//! If enable, the public API server support the following ReST endpoints:
+//! - **GET /health**: Obtain health information about the overall server process.
+//!
 use crate::router_engine::main_router_engine::MainRouterEngine;
 use crate::web::management_server::ManagementServer;
 use app::args::parse;
@@ -33,7 +91,7 @@ async fn main() {
                     let router_engine = Arc::new(t_router_engine);
                     let mut subsystems: Vec<Box<dyn Subsystem>> = Vec::new();
 
-                    if let Some(http_bind_address) = args.http_server_binding() {
+                    if let Some(http_bind_address) = args.management_server_binding() {
                         match ManagementServer::new(
                             http_bind_address,
                             &router_engine,

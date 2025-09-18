@@ -22,6 +22,7 @@ pub struct SocketAddressSpec {
 }
 
 impl SocketAddressSpec {
+    #[allow(dead_code)]
     pub fn new(ip_address: &str, port_number: &Option<u16>) -> Self {
         SocketAddressSpec {
             ip_address: ip_address.to_string(),
