@@ -9,10 +9,11 @@
 use crate::shared::error::Error::{InvalidIpAddressError, ParseIpAddressError};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SocketAddressSpec {
     ip_address: String,
@@ -85,6 +86,19 @@ impl TryInto<SocketAddr> for SocketAddressSpec {
             }
             Err(err) => Err(ParseIpAddressError(err)),
         }
+    }
+}
+
+impl PartialEq<Self> for SocketAddressSpec {
+    fn eq(&self, other: &Self) -> bool {
+        self.ip_address == other.ip_address && self.port_number == other.port_number
+    }
+}
+
+impl Hash for SocketAddressSpec {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ip_address.hash(state);
+        self.port_number.hash(state);
     }
 }
 

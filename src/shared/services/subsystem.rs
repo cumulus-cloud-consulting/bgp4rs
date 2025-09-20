@@ -8,7 +8,13 @@
 //
 use async_trait::async_trait;
 
+/// Abstract trait boundary implemented by subsystems which required additional management
+/// from the main server task
 #[async_trait]
 pub trait Subsystem {
+    /// Execute any addition tasks required to stop this subsystem.
     async fn stop(&self) -> ();
+
+    /// Get the subsystem name, for example for logging purposes
+    fn name(&self) -> &'static str;
 }

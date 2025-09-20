@@ -12,4 +12,5 @@
 //! The supported HTTP-base ReST servers are:
 //! - Management API
 //! - Public API
-pub mod management_server;
+pub mod management_api_server;
+pub mod public_api_server;

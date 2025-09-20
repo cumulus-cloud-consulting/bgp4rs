@@ -113,7 +113,7 @@ impl Args {
         }
     }
 
-    pub fn management_server_binding(&self) -> Option<SocketAddressSpec> {
+    pub fn management_api_server_binding(&self) -> Option<SocketAddressSpec> {
         if let Some(ip_addr_spec) = self.management_server_bind_addr.as_ref()
             && let Some(port_number) = self.management_server_port
         {
@@ -125,7 +125,7 @@ impl Args {
             None
         }
     }
-    pub fn api_server_binding(&self) -> Option<SocketAddressSpec> {
+    pub fn public_api_server_binding(&self) -> Option<SocketAddressSpec> {
         if let Some(ip_addr_spec) = self.api_server_bind_addr.as_ref()
             && let Some(port_number) = self.api_server_port
         {

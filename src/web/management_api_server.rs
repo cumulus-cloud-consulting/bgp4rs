@@ -26,10 +26,14 @@ use axum::routing::post;
 use axum::Router;
 use log::{error, info};
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+
+const SUBSYSTEM: &'static str = "Management API";
 
 /// The overall structure of the API management server.
-pub struct ManagementServer {}
+pub struct ManagementApiServer {
+    termination: RwLock<Box<dyn Fn() + Send + Sync>>,
+}
 
 /// Internal structure holding information required to run the management API server.
 #[derive(Clone)]
@@ -38,7 +42,7 @@ struct ManagementAppState {
     router_engine: Arc<Box<dyn RouterEngine + Send + Sync>>,
 }
 
-impl ManagementServer {
+impl ManagementApiServer {
     /// Create a new instance of the management API server.
     ///
     /// Arguments:
@@ -74,11 +78,13 @@ impl ManagementServer {
 
             match tokio::net::TcpListener::bind(bind_addr).await {
                 Ok(listener) => {
-                    tokio::spawn(async move { axum::serve(listener, app).await });
+                    let join_handle = tokio::spawn(async move { axum::serve(listener, app).await });
 
                     info!("Management server listening on {}", bind_addr);
 
-                    Ok(Box::new(ManagementServer {}))
+                    Ok(Box::new(ManagementApiServer {
+                        termination: RwLock::new(Box::new(move || join_handle.abort())),
+                    }))
                 }
                 Err(err) => {
                     error!("Cannot bind management server to {}: {}", bind_addr, err);
@@ -113,11 +119,29 @@ impl ManagementServer {
             }
         }
     }
+
+    /// Abort the spawned listener task
+    fn abort_server(&self) {
+        match self.termination.read() {
+            Ok(termination) => {
+                (termination.as_ref())();
+
+                info!("Management API server task terminated");
+            }
+            Err(err) => {
+                error!("Cannot abort management API server: {}", err);
+            }
+        }
+    }
 }
 
 #[async_trait]
-impl Subsystem for ManagementServer {
+impl Subsystem for ManagementApiServer {
     async fn stop(&self) -> () {
-        ()
+        self.abort_server()
+    }
+
+    fn name(&self) -> &'static str {
+        SUBSYSTEM
     }
 }

@@ -65,7 +65,8 @@
 //! - **GET /health**: Obtain health information about the overall server process.
 //!
 use crate::router_engine::main_router_engine::MainRouterEngine;
-use crate::web::management_server::ManagementServer;
+use crate::web::management_api_server::ManagementApiServer;
+use crate::web::public_api_server::PublicApiServer;
 use app::args::parse;
 use log::{error, info};
 use shared::network::local_address_matcher::HostInterfacesLocalAddressMatcher;
@@ -91,8 +92,17 @@ async fn main() {
                     let router_engine = Arc::new(t_router_engine);
                     let mut subsystems: Vec<Box<dyn Subsystem>> = Vec::new();
 
-                    if let Some(http_bind_address) = args.management_server_binding() {
-                        match ManagementServer::new(
+                    let opt_mgmt_api_binding = args.management_api_server_binding();
+                    let opt_public_api_binding = args.public_api_server_binding();
+
+                    if opt_mgmt_api_binding == opt_public_api_binding {
+                        error!("Cannot use identical port bindings for management and public API ");
+
+                        process::exit(1);
+                    }
+
+                    if let Some(http_bind_address) = opt_mgmt_api_binding {
+                        match ManagementApiServer::new(
                             http_bind_address,
                             &router_engine,
                             &local_address_matcher,
@@ -101,7 +111,23 @@ async fn main() {
                         {
                             Ok(server) => subsystems.push(server),
                             Err(err) => {
-                                error!("Error starting management web server: {err}");
+                                error!("Error starting management API web server: {err}");
+                                process::exit(1);
+                            }
+                        }
+                    }
+
+                    if let Some(http_bind_address) = opt_public_api_binding {
+                        match PublicApiServer::new(
+                            http_bind_address,
+                            &router_engine,
+                            &local_address_matcher,
+                        )
+                        .await
+                        {
+                            Ok(server) => subsystems.push(server),
+                            Err(err) => {
+                                error!("Error starting public API web server: {err}");
                                 process::exit(1);
                             }
                         }
@@ -124,6 +150,11 @@ async fn main() {
                                                     .await;
 
                                                 for subsystem in subsystems {
+                                                    info!(
+                                                        "Stopping subsystem {}",
+                                                        subsystem.name()
+                                                    );
+
                                                     subsystem.stop().await;
                                                 }
 

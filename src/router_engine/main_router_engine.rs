@@ -14,6 +14,8 @@ use crate::shared::services::router_engine::RouterEngine;
 use async_trait::async_trait;
 use log::{error, info, warn};
 use std::fmt::{Display, Formatter};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use uuid::Uuid;
@@ -21,6 +23,7 @@ use uuid::Uuid;
 pub struct MainRouterEngine {
     local_address_matcher: Arc<Box<dyn LocalAddressMatcher + Send + Sync>>,
     verb_tx: Sender<RouterControlVerb>,
+    running: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -140,6 +143,10 @@ impl RouterEngine for MainRouterEngine {
 
         ()
     }
+
+    async fn is_running(&self) -> bool {
+        self.running.load(Relaxed)
+    }
 }
 
 impl MainRouterEngine {
@@ -151,13 +158,18 @@ impl MainRouterEngine {
     )> {
         let (verb_tx, verb_rx) = channel(32);
         let (status_tx, status_rx) = channel(32);
+        let running = Arc::new(AtomicBool::new(false));
+        let managed_running = running.clone();
 
-        tokio::spawn(async move { Self::run_event_loop(verb_rx, status_tx).await });
+        tokio::spawn(
+            async move { Self::run_event_loop(verb_rx, status_tx, managed_running).await },
+        );
 
         Ok((
             Box::new(MainRouterEngine {
                 local_address_matcher: local_address_matcher.clone(),
                 verb_tx,
+                running: running.clone(),
             }),
             status_rx,
         ))
@@ -178,7 +190,10 @@ impl MainRouterEngine {
     async fn run_event_loop(
         mut verb_rx: Receiver<RouterControlVerb>,
         status_tx: Sender<RouterStatusVerb>,
+        running: Arc<AtomicBool>,
     ) {
+        running.store(true, Relaxed);
+
         loop {
             match verb_rx.recv().await {
                 Some(router_verb) => {
@@ -209,11 +224,13 @@ impl MainRouterEngine {
             }
         }
 
+        running.store(false, Relaxed);
+
         if let Err(err) = status_tx.send(RouterStatusVerb::Terminated).await {
             warn!("Cannot send router termination verb: {}", err);
         }
 
-        info!("Exiting router event loop");
+        info!("Exited router event loop");
     }
 }
 

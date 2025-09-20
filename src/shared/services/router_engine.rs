@@ -37,4 +37,7 @@ pub trait RouterEngine {
 
     /// Await router engine termination
     async fn await_termination(&self, status_rx: &mut Receiver<RouterStatusVerb>) -> ();
+
+    /// Query status if router engine is running
+    async fn is_running(&self) -> bool;
 }
