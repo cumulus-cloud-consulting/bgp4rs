@@ -24,36 +24,12 @@
 //! This implementation of the BGP4 protocol supports the protocol according to these
 //! standardization documents:
 //! - [RFC4271](https://datatracker.ietf.org/doc/html/rfc4271 "A Border Gateway Protocol 4 (BGP-4)")
+//! - [RFC 6793](https://datatracker.ietf.org/doc/html/rfc6793 "BGP Support for Four-Octet Autonomous System (AS) Number Space")
 //!
 //! ### Usage
-//! The application support the following command-line options and environment variables:
-//! - **-c <CONFIG_TYPE>** or **--config-type <CONFIG_TYPE>**: Select which configuration
-//! source is used for obtaining peer configuration information. The available options are:
-//!     - **file** read configuration file. Requires a peer configuration file to be available
-//!  - **-r <ROUTER_CONFIG_PATH>** or **--router-config-path <ROUTER_CONFIG_PATH>**: Read the peer
-//! configuration file from the path denoted by the argument to this command-line options. It is
-//! only evaluated if the configuration type is *file* (default value). Alternatively, the value
-//! is read from the environment variable **ROUTER_CONFIG_PATH**.
-//! - **--management-server-bind-addr <MANAGEMENT_SERVER_BIND_ADDR>**: Bind the management web
-//! server to the given address in the form of an *IPv4* or an *IPv6* address. Alternatively,
-//! the value is derived from the environment variable **MANAGEMENT_SERVER_BIND_ADDR**.
-//! *Please note:* The management server is only started if the management server port number is
-//! also specified.
-//! - **--management-server-port <MANAGEMENT_SERVER_PORT>**: Bind the management web server to
-//!  the given port number (in the range *1* to *65535*). Alternatively,
-//! the value is derived from the environment variable **MANAGEMENT_SERVER_PORT**.
-//! *Please note:* The management server is only started if the management server bind address is
-//! also specified.
-//! - **--api-server-bind-addr <API_SERVER_BIND_ADDR>**: Bind the API web
-//! server to the given address in the form of an *IPv4* or an *IPv6* address. Alternatively,
-//! the value is derived from the environment variable **API_SERVER_BIND_ADDR**.
-//! *Please note:* The API server is only started if the API server port number is also
-//! specified.
-//! - **--api-server-port <API_SERVER_PORT>**: Bind the API web server to
-//!  the given port number (in the range *1* to *65535*). Alternatively,
-//! the value is derived from the environment variable **API_SERVER_PORT**.
-//! *Please note:* The API server is only started if the API server bind address is
-//! also specified.
+//! The application supports some command-line options for initial configuration.
+//!
+//! For the arguments supported, refer to the [`main`] entry point
 //!
 //! ### Builtin management server
 //! If enabled, the management server supports the following ReST endpoints:
@@ -80,6 +56,47 @@ mod router_engine;
 mod shared;
 mod web;
 
+/// # Main application entry point
+/// This is the main application point into the application.
+///
+/// It performs the following functionality:
+/// - Parse command-line arguments
+/// - Initialize log system
+/// - Initialize the main router engine
+/// - Start the built-in management API web server, if configured
+/// - Start the built-in public API web server, if configured
+/// - Start the main router engine
+/// - Await termination of the main router engine
+/// - Shutdown any active subsystem
+///
+/// ## Usage
+/// The application support the following command-line options and environment variables:
+/// - **-c <CONFIG_TYPE>** or **--config-type <CONFIG_TYPE>**: Select which configuration
+/// source is used for obtaining peer configuration information. The available options are:
+///     - **file** read configuration file. Requires a peer configuration file to be available
+///  - **-r <ROUTER_CONFIG_PATH>** or **--router-config-path <ROUTER_CONFIG_PATH>**: Read the peer
+/// configuration file from the path denoted by the argument to this command-line options. It is
+/// only evaluated if the configuration type is *file* (default value). Alternatively, the value
+/// is read from the environment variable **ROUTER_CONFIG_PATH**.
+/// - **--management-server-bind-addr <MANAGEMENT_SERVER_BIND_ADDR>**: Bind the management web
+/// the value is derived from the environment variable **MANAGEMENT_SERVER_BIND_ADDR**.
+/// *Please note:* The management server is only started if the management server port number is
+/// also specified.
+/// - **--management-server-port <MANAGEMENT_SERVER_PORT>**: Bind the management web server to
+///  the given port number (in the range *1* to *65535*). Alternatively,
+/// the value is derived from the environment variable **MANAGEMENT_SERVER_PORT**.
+/// *Please note:* The management server is only started if the management server bind address is
+/// also specified.
+/// - **--api-server-bind-addr <API_SERVER_BIND_ADDR>**: Bind the API web
+/// server to the given address in the form of an *IPv4* or an *IPv6* address. Alternatively,
+/// the value is derived from the environment variable **API_SERVER_BIND_ADDR**.
+/// *Please note:* The API server is only started if the API server port number is also
+/// specified.
+/// - **--api-server-port <API_SERVER_PORT>**: Bind the API web server to
+///  the given port number (in the range *1* to *65535*). Alternatively,
+/// the value is derived from the environment variable **API_SERVER_PORT**.
+/// *Please note:* The API server is only started if the API server bind address is
+/// also specified.
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     match parse() {

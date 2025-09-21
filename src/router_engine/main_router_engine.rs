@@ -180,10 +180,10 @@ impl MainRouterEngine {
         local_address_matcher: &Box<dyn LocalAddressMatcher + Send + Sync>,
     ) -> bool {
         local_address_matcher
-            .is_local_address(&peer_configuration.local_address.ip())
+            .is_local_socket_address(&peer_configuration.local_address)
             .await
             && !local_address_matcher
-                .is_local_address(&peer_configuration.remote_address.ip())
+                .is_local_socket_address(&peer_configuration.remote_address)
                 .await
     }
 

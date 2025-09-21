@@ -6,6 +6,10 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 //
+//! This module contains the actual command-line arguments handling code.
+//!
+//!  The list of supported command-line arguments is documented in the [`crate::main`]
+//!
 use crate::config_file::config_file_provider::ConfigFileProvider;
 use crate::shared::config::config_provider::ConfigProvider;
 use crate::shared::error::Error::{
@@ -22,6 +26,7 @@ use log4rs::Config;
 use std::path::Path;
 use std::sync::Arc;
 
+/// Main structure holding all supported command-line options and reasonable defaults
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
@@ -30,8 +35,8 @@ pub struct Args {
     pub router_config_path: String,
 
     /// Path to config file. Required if file-based configuration is used
-    #[arg(short, long, default_value_t = String::from("./config/log4rs.yaml"), env("LOG_CONFIG_PATH"))]
-    pub log_config_path: String,
+    #[arg(short, long, env("LOG_CONFIG_PATH"))]
+    pub log_config_path: Option<String>,
 
     /// configuration type to be applied. Defaults to file based if not specified
     #[arg(value_enum, short, long, default_value_t = ConfigType::File)]
@@ -54,11 +59,20 @@ pub struct Args {
     pub api_server_port: Option<u16>,
 }
 
+/// Supported types of peer configuration sources
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum ConfigType {
+    /// Select a file based peer configuration source
     File,
 }
 
+/// Parse the passed command-line and execute additional validations based on the selected peer
+/// configuration source.
+///
+/// The supported validations are:
+/// - In case of a [`ConfigType::File`] source, validate that the passed path denotes an existing
+/// file
+///
 pub fn parse() -> Result<Args> {
     let args = Args::parse();
 
@@ -80,6 +94,8 @@ pub fn parse() -> Result<Args> {
 }
 
 impl Args {
+    /// Obtain the [`crate::shared::config::config_provider::ConfigProvider`] instance which
+    /// handles peer configuration according to the selected [`ConfigType`] option
     pub fn config_provider(
         &self,
         _router_engine: &Arc<Box<dyn RouterEngine + Send + Sync>>,
@@ -89,30 +105,58 @@ impl Args {
         }
     }
 
+    /// Initialize the logging subsystem taking the logging configuration file into account
+    /// in case a file path to a logging configuration file is provided.
+    ///
+    /// The algorithm to initialize the logging subsystem is as follows:
+    /// - if a path to a logging configuration file is specified and the path points to
+    /// an existing file, it is attempted to initialize the logging subsystem using this file.
+    /// If this fails, escalate the error to the caller.
+    /// - if a path to a logging configuration file is specified and the path points to
+    /// a non-existing file, then initialize the logging subsystem with a reasonable
+    /// default configuration
+    /// - if a path to a logging configuration file is not specified, then initialize the
+    /// logging subsystem with a reasonable default configuration.
+    ///
     pub fn initialize_logging(&self) -> Result<()> {
-        let log_file_path = Path::new(&self.log_config_path.as_str()).to_path_buf();
+        match self.log_config_path {
+            Some(ref log_config_path) => {
+                let log_file_path = Path::new(log_config_path.as_str()).to_path_buf();
 
-        if !log_file_path.exists() {
-            let stdout = ConsoleAppender::builder().build();
-
-            match Config::builder()
-                .appender(Appender::builder().build("stdout", Box::new(stdout)))
-                .build(Root::builder().appender("stdout").build(LevelFilter::Info))
-            {
-                Ok(config) => match log4rs::init_config(config) {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(LoggingInstantiationError(err)),
-                },
-                Err(e) => Err(LoggingConfigurationError(e)),
+                if !log_file_path.exists() {
+                    Self::initialize_logging_with_defaults()
+                } else {
+                    match log4rs::init_file(log_file_path, Default::default()) {
+                        Ok(()) => Ok(()),
+                        Err(err) => Err(UnspecifiedError(err)),
+                    }
+                }
             }
-        } else {
-            match log4rs::init_file(log_file_path, Default::default()) {
-                Ok(()) => Ok(()),
-                Err(err) => Err(UnspecifiedError(err)),
-            }
+            None => Self::initialize_logging_with_defaults(),
         }
     }
 
+    /// Initialize the logging subsystem with a resonable default configuration:
+    /// - Log any messages to stdout
+    /// - Set the minimal logging level to [`LevelFilter::Info`]
+    fn initialize_logging_with_defaults() -> Result<()> {
+        let stdout = ConsoleAppender::builder().build();
+
+        match Config::builder()
+            .appender(Appender::builder().build("stdout", Box::new(stdout)))
+            .build(Root::builder().appender("stdout").build(LevelFilter::Info))
+        {
+            Ok(config) => match log4rs::init_config(config) {
+                Ok(_) => Ok(()),
+                Err(err) => Err(LoggingInstantiationError(err)),
+            },
+            Err(e) => Err(LoggingConfigurationError(e)),
+        }
+    }
+
+    /// Assemble the values of the given command-line arguments
+    /// [`Args::management_server_bind_addr`] and [`Args::management_server_port`]
+    /// into a [`SocketAddressSpec`] if both values are provided
     pub fn management_api_server_binding(&self) -> Option<SocketAddressSpec> {
         if let Some(ip_addr_spec) = self.management_server_bind_addr.as_ref()
             && let Some(port_number) = self.management_server_port
@@ -125,6 +169,10 @@ impl Args {
             None
         }
     }
+
+    /// Assemble the values of the given command-line arguments
+    /// [`Args::api_server_bind_addr`] and [`Args::api_server_port`]
+    /// into a [`SocketAddressSpec`] if both values are provided
     pub fn public_api_server_binding(&self) -> Option<SocketAddressSpec> {
         if let Some(ip_addr_spec) = self.api_server_bind_addr.as_ref()
             && let Some(port_number) = self.api_server_port

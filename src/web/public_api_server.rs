@@ -56,7 +56,7 @@ impl PublicApiServer {
         let bind_addr = TryInto::<SocketAddr>::try_into(bind_addr_spec).unwrap();
 
         if local_address_matcher
-            .is_local_address(&bind_addr.ip())
+            .is_local_socket_address(&bind_addr)
             .await
         {
             info!("Starting management HTTP server on {}", &bind_addr);

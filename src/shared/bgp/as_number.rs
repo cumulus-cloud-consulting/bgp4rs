@@ -11,6 +11,11 @@ use serde::{Deserializer, Serializer};
 use std::fmt;
 use std::fmt::Formatter;
 
+/// Container enumeration holding either a 16 Bit- or 32 Bit-sized AS number value.
+///
+/// The 32 Bit-sized AS numbers are also called extended AS numbers in the
+/// [RFC 6793](https://datatracker.ietf.org/doc/html/rfc6793) normative document.
+///
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum AsNumber {
     Small(u16),

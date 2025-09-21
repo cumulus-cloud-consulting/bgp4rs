@@ -19,6 +19,7 @@ anyhow = "1.0.99"
 async-trait = "0.1.89"
 byteorder = "1.5.0"
 clap = { version = "4.5.47", features = ["derive", "env"] }
+crossbeam = "0.8.4"
 log = "0.4.28"
 log4rs = "1.4.0"
 network-interface = "2.0.3"

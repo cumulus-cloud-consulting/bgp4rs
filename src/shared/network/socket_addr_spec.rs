@@ -13,16 +13,30 @@ use std::hash::{Hash, Hasher};
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
+/// Container structure to bundle a textual representation of an IPv4 or IPv6 address and an
+/// optional port number
+///
 #[derive(Deserialize, Serialize, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SocketAddressSpec {
+    /// Textual representation of an IPv4 or IPv6 address.
     ip_address: String,
+    /// Optional port number.
+    ///
+    /// Users of this structure usually know the reasonable default value
+    /// within their specific context
     port_number: Option<u16>,
+    /// Flag denoting if a localhost address may be carried by an instance.
+    ///
+    /// This flag is ignored in serialization, deserialization, comparison and hash value
+    /// calculation
+    ///
     #[serde(skip)]
     localhost_allowed: bool,
 }
 
 impl SocketAddressSpec {
+    /// Create a new instance which is not permitted to handle localhost address representations.
     #[allow(dead_code)]
     pub fn new(ip_address: &str, port_number: &Option<u16>) -> Self {
         SocketAddressSpec {
@@ -32,6 +46,7 @@ impl SocketAddressSpec {
         }
     }
 
+    /// Create a new instance which is permitted to handle localhost address representations.
     pub fn new_allowing_localhost(ip_address: &str, port_number: &Option<u16>) -> Self {
         SocketAddressSpec {
             ip_address: ip_address.to_string(),
@@ -40,6 +55,8 @@ impl SocketAddressSpec {
         }
     }
 
+    /// Convert this instance into an instances which carries a given default value if the
+    /// passed instance does not have a port number set.
     pub fn with_default_port(self, def_port_number: u16) -> Self {
         match self.port_number {
             Some(_port_number) => self,
